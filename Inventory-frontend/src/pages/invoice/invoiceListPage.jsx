@@ -9,7 +9,7 @@ import MultiSelect from "../../components/MultiSelect";
 import DateRangePicker from "../../components/DateRangerPicker";
 import { useInvoice } from "../../hook/useInvoice";
 import { useToast } from "../../context/ToastContext";
-import Pagination from "../../components/Pagination";
+import Pagination from "../../components/pagination";
 
 export default function InvoiceListPage() {
   const navigate = useNavigate();

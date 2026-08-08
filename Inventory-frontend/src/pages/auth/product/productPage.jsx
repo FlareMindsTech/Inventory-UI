@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Shirt, Search, Filter as FilterIcon } from "lucide-react";
-import Card from "../../../components/Card";
+import Card from "../../../components/card";
 import Table from "../../../components/Table";
-import Pagination from "../../../components/Pagination";
+import Pagination from "../../../components/pagination";
 import MultiSelect from "../../../components/MultiSelect";
 import Chip from "../../../components/Chip";
 import Modal from "../../../components/Modal";

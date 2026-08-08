@@ -11,13 +11,14 @@ import BillingPage from "./pages/billing/Billingpage";
 import StaffList from "./pages/staff/StaffPage";
 import CategoryList from "./pages/catlog.js/catagoriesList";
 import BrandList from "./pages/catlog.js/BrandList";
-import RetailInventoryPage from "./pages/retail/RetailInventoryPage";
+import RetailInventoryPage from "./pages/retail/retailInventoryPage";
 import InvoiceListPage from "./pages/invoice/invoiceListPage";
-import InvoicePage from "./pages/invoice/InvoicePage";
+import InvoicePage from "./pages/invoice/invoicePage";
 import CustomerPage from "./pages/customer/customerPage";
 import SalesPage from "./pages/sales/salespage";
 import ProtectedRoute from "./routes/protectedRoutes";
 import PageLoader from "./components/pageLoader";
+import ExchangeProducts from "./pages/exchange/exchangePage"
 
 //Reports
 import ReportsHomePage from "./pages/reports/reportsHomePage";
@@ -77,6 +78,7 @@ export default function App() {
               <Route path="/customers" element={<CustomerPage />} />
               <Route path="/sales" element={<SalesPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+               <Route path="/returns" element={<ExchangeProducts />} />
 
               {/*Reports */}
               <Route path="/reports" element={<ReportsHomePage />} />

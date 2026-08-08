@@ -6,7 +6,7 @@ import { createCustomer, getCustomerByPhone } from "../../features/customers/cus
 import Card from "../../components/card";
 import Table from "../../components/Table";
 import Button from "../../components/Button";
-import Input from "../../components/Input";
+import Input from "../../components/input";
 import { useNavigate } from "react-router-dom";
 import { useInvoice } from "../../hook/useInvoice";
 

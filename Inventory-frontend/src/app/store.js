@@ -12,6 +12,7 @@ import customerReducer from "../features/customers/customerSlice";
 import salesReducer from "../features/sales/saleSlice";
 import reportReducer from "../features/reports/reportslice";
 import settingReducer from "../features/setting/settingSlice";
+import exchangeReducer from "../features/exchange/exchangeSlice"
 
 
 export const store = configureStore({
@@ -29,6 +30,7 @@ export const store = configureStore({
       sales:salesReducer,
       reports:reportReducer,
       settings:settingReducer,
+      exchange:exchangeReducer,
      
   },
 });

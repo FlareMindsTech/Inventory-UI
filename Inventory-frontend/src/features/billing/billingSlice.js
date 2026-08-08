@@ -6,10 +6,17 @@ import {
   updateItemQuantity,
   generateBill,
   processPayment,
+  startNewBill,
+  getOpenBills,
+  deleteOpenBill,
 } from "./billingApi";
 
 function extractData(response) {
   return response.Result || response.data || response.result || response;
+}
+
+function getBillId(bill) {
+  return bill?.billId ?? bill?._id ?? bill?.id ?? null;
 }
 
 export const scanBarcodeThunk = createAsyncThunk(
@@ -25,9 +32,9 @@ export const scanBarcodeThunk = createAsyncThunk(
 
 export const addItemToBillThunk = createAsyncThunk(
   "billing/addItem",
-  async ({ productId, quantity, customerId }, { rejectWithValue }) => {
+  async ({ billId, productId, quantity, customerId }, { rejectWithValue }) => {
     try {
-      const result = extractData(await addItemToBill({ productId, quantity, customerId }));
+      const result = extractData(await addItemToBill({ billId, productId, quantity, customerId }));
       return result; // { bill, items }
     } catch (err) {
       return rejectWithValue(err.response?.data?.Message || "Failed to add item");
@@ -60,9 +67,9 @@ export const updateItemQuantityThunk = createAsyncThunk(
 
 export const generateBillThunk = createAsyncThunk(
   "billing/generateBill",
-  async (_, { rejectWithValue }) => {
+  async (billId, { rejectWithValue }) => {
     try {
-      return extractData(await generateBill()); // { billId, billNumber, subtotal, gstAmount, grandTotal }
+      return extractData(await generateBill(billId)); // { billId, billNumber, subtotal, gstAmount, grandTotal }
     } catch (err) {
       return rejectWithValue(err.response?.data?.Message || "Failed to generate bill");
     }
@@ -80,15 +87,60 @@ export const processPaymentThunk = createAsyncThunk(
   }
 );
 
+// ----- Waiting queue thunks -----
+
+export const startNewBillThunk = createAsyncThunk(
+  "billing/startNewBill",
+  async (customerId, { rejectWithValue }) => {
+    try {
+      return extractData(await startNewBill(customerId));
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.Message || "Failed to start new bill");
+    }
+  }
+);
+
+export const fetchOpenBillsThunk = createAsyncThunk(
+  "billing/fetchOpenBills",
+  async (_, { rejectWithValue }) => {
+    try {
+      const data = extractData(await getOpenBills());
+      // normalize whatever shape the backend actually returns (array directly, or nested)
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.bills)) return data.bills;
+      if (Array.isArray(data?.data)) return data.data;
+      return [];
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.Message || "Failed to load waiting queue");
+    }
+  }
+);
+
+export const deleteOpenBillThunk = createAsyncThunk(
+  "billing/deleteOpenBill",
+  async (billId, { rejectWithValue }) => {
+    try {
+      await deleteOpenBill(billId);
+      return billId;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.Message || "Failed to discard bill");
+    }
+  }
+);
+
 const billingSlice = createSlice({
   name: "billing",
   initialState: {
     scannedProduct: null,
-    currentBill: null, // the running bill object, from addItemToBill's `bill`
+    currentBill: null, // the running bill object for whichever customer is currently active
     cartItems: [],
     generatedBill: null,
     paymentResult: null,
     customerId: null,
+
+    activeBillId: null, // which bill in the queue is currently showing on screen
+    openBills: [], // the waiting queue — every unpaid bill for this cashier
+
     status: "idle",
     error: null,
   },
@@ -106,6 +158,17 @@ const billingSlice = createSlice({
       state.paymentResult = null;
       state.scannedProduct = null;
       state.customerId = null;
+      state.activeBillId = null;
+    },
+    // switch which queued bill is shown, without touching the others
+    switchActiveBill: (state, action) => {
+      const billId = action.payload;
+      const bill = state.openBills.find((b) => getBillId(b) === billId);
+      state.activeBillId = billId;
+      state.currentBill = bill ?? null;
+      state.cartItems = bill?.items ?? [];
+      state.customerId = bill?.customerId ?? null;
+      state.generatedBill = null; // a different customer's cart hasn't been generated yet
     },
   },
   extraReducers: (builder) => {
@@ -120,13 +183,19 @@ const billingSlice = createSlice({
       .addCase(addItemToBillThunk.pending, (state) => {
         state.status = "loading";
       })
-    .addCase(addItemToBillThunk.fulfilled, (state, action) => {
-    console.log("Redux Payload:", action.payload);
+      .addCase(addItemToBillThunk.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.currentBill = action.payload.bill;
+        state.cartItems = action.payload.items || [];
+        state.activeBillId = getBillId(action.payload.bill) ?? state.activeBillId;
 
-    state.status = "succeeded";
-    state.currentBill = action.payload.bill;
-    state.cartItems = action.payload.items || [];
-})
+        // keep the queue list's copy of this bill's items in sync too
+        const billId = getBillId(action.payload.bill);
+        const idx = state.openBills.findIndex((b) => getBillId(b) === billId);
+        if (idx !== -1) {
+          state.openBills[idx] = { ...state.openBills[idx], ...action.payload.bill, items: state.cartItems };
+        }
+      })
       .addCase(addItemToBillThunk.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
@@ -145,14 +214,64 @@ const billingSlice = createSlice({
         state.generatedBill = action.payload;
       })
       .addCase(processPaymentThunk.fulfilled, (state, action) => {
+        const paidBillId = action.meta.arg.billId;
+
         state.paymentResult = action.payload;
-        state.cartItems = [];
-        state.currentBill = null;
+        state.openBills = state.openBills.filter((b) => getBillId(b) !== paidBillId);
+
+        if (state.activeBillId === paidBillId) {
+          // fall back to the next customer in the queue, if any are still waiting
+          const next = state.openBills[0];
+          if (next) {
+            state.activeBillId = getBillId(next);
+            state.currentBill = next;
+            state.cartItems = next.items ?? [];
+            state.customerId = next.customerId ?? null;
+          } else {
+            state.cartItems = [];
+            state.currentBill = null;
+            state.customerId = null;
+            state.activeBillId = null;
+          }
+        }
         state.generatedBill = null;
-        state.customerId = null;
+      })
+
+      // ----- queue -----
+      .addCase(startNewBillThunk.fulfilled, (state, action) => {
+        const bill = action.payload;
+        state.openBills.push(bill);
+        state.activeBillId = getBillId(bill);
+        state.currentBill = bill;
+        state.cartItems = bill.items ?? [];
+        state.generatedBill = null;
+      })
+      .addCase(fetchOpenBillsThunk.fulfilled, (state, action) => {
+        state.openBills = action.payload;
+        // if nothing is active yet, default to the first bill in the queue
+        if (!state.activeBillId && action.payload.length > 0) {
+          const first = action.payload[0];
+          state.activeBillId = getBillId(first);
+          state.currentBill = first;
+          state.cartItems = first.items ?? [];
+          state.customerId = first.customerId ?? null;
+        }
+      })
+      .addCase(deleteOpenBillThunk.fulfilled, (state, action) => {
+        const billId = action.payload;
+        state.openBills = state.openBills.filter((b) => getBillId(b) !== billId);
+        if (state.activeBillId === billId) {
+          const next = state.openBills[0];
+          state.activeBillId = next ? getBillId(next) : null;
+          state.currentBill = next ?? null;
+          state.cartItems = next?.items ?? [];
+          state.customerId = next?.customerId ?? null;
+          state.generatedBill = null;
+        }
       });
   },
 });
 
-export const { clearScannedProduct, setCustomerId, clearBillingSession } = billingSlice.actions;
+export const { clearScannedProduct, setCustomerId, clearBillingSession, switchActiveBill } =
+  billingSlice.actions;
 export default billingSlice.reducer;

@@ -7,7 +7,7 @@ import Chip from "../../components/Chip";
 import MultiSelect from "../../components/MultiSelect";
 import { useCustomer } from "../../hook/useCustomer";
 import { useToast } from "../../context/ToastContext";
-import Pagination from "../../components/Pagination";
+import Pagination from "../../components/pagination";
 
 const paymentIcons = {
   cash: <Banknote className="w-3.5 h-3.5 text-emerald-600" />,
