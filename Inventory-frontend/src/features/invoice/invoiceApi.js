@@ -1,10 +1,11 @@
 import axiosInstance from "../../app/axiosInstance";
 
-// Get all invoices
+
 export const getInvoices = async (page = 1, limit = 10) => {
   const { data } = await axiosInstance.get(
     `/api/invoices?page=${page}&limit=${limit}`
   );
+  console.log("invoice",data);
   return data;
 };
 

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { useAuth } from "../../hook/useAuth";
 import { useToast } from "../../context/ToastContext";
-import Input from "../../components/Input";
+import Input from "../../components/input";
 import Button from "../../components/Button";
 import loginBg from "../../assets/bg2.jpg";
 

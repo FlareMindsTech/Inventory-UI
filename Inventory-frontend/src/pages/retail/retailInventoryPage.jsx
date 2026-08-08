@@ -6,7 +6,7 @@ import { useFactoryInventory } from "../../hook/useFactoryInventory";
 import { useToast } from "../../context/ToastContext";
 import Card from "../../components/card";
 import Table from "../../components/Table";
-import Pagination from "../../components/Pagination";
+import Pagination from "../../components/pagination";
 
 export default function RetailInventory() {
   const { retailProducts, isLoading, fetchRetailInventory, adjustStock } = useRetail();

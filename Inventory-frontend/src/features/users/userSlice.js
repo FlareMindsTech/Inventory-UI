@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { getAllUsers, createUser, updateUser, deleteUser ,changePassword} from "./userAPI";
+import { getAllUsers, createUser, updateUser, deleteUser ,changePassword} from "./userApi.js";
 
 function extractList(response) {
   return response.data || response.result || response.Result || response;

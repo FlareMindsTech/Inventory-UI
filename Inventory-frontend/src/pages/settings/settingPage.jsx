@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSettings } from "../../hook/useSetting";
 import { useToast } from "../../context/ToastContext";
 import Card from "../../components/card";
-import Input from "../../components/Input";
+import Input from "../../components/input";
 import Button from "../../components/Button";
 
 export default function SettingsPage() {

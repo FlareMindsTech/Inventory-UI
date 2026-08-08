@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { UserRound, Plus } from "lucide-react";
-import Card from "../../components/Card";
+import Card from "../../components/card";
 import Table from "../../components/Table";
 import Modal from "../../components/Modal";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import { useToast } from "../../context/ToastContext";
 import { useUsers } from "../../hook/useUser";
-import StaffForm from "./StaffForm";
+import StaffForm from "./staffForm";
 import { Pencil, Trash2, KeyRound } from "lucide-react";
-import Pagination from "../../components/Pagination";
+import Pagination from "../../components/pagination";
 
 function getUserId(user) {
   return user?.id ?? user?.userId ?? user?._id;
