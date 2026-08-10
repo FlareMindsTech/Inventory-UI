@@ -25,6 +25,387 @@ export default function InvoicePage() {
 
   const handlePrint = () => window.print();
 
+  const handleThermalPrint = () => {
+  if (!selectedInvoice) return;
+
+  const {
+    invoiceNumber,
+    createdAt,
+    billDetails,
+    customerDetails,
+    productList,
+  } = selectedInvoice;
+
+  const iframe = document.createElement("iframe");
+
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.style.visibility = "hidden";
+
+  document.body.appendChild(iframe);
+
+  const receiptItems = productList
+    .map(
+      (item) => `
+        <tr>
+          <td class="product">
+            ${item.productName}
+            <small>${item.productCode || ""}</small>
+          </td>
+          <td class="qty">${item.quantity}</td>
+          <td class="amount">₹${Number(item.total).toFixed(2)}</td>
+        </tr>
+      `
+    )
+    .join("");
+
+  const receiptHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8" />
+
+        <style>
+          @page {
+            size: 80mm auto;
+            margin: 0;
+          }
+
+          * {
+            box-sizing: border-box;
+          }
+
+          html,
+          body {
+            width: 80mm;
+            margin: 0;
+            padding: 0;
+            background: #fff;
+          }
+
+          body {
+            font-family: Arial, Helvetica, sans-serif;
+            color: #000;
+            font-size: 12px;
+            padding: 4mm;
+          }
+
+          .receipt {
+            width: 72mm;
+            margin: 0 auto;
+          }
+
+          .center {
+            text-align: center;
+          }
+
+          .shop-logo {
+            width: 28mm;
+            height: auto;
+            object-fit: contain;
+            margin-bottom: 2mm;
+          }
+
+          .shop-name {
+            font-size: 18px;
+            font-weight: 800;
+            margin: 0;
+            text-transform: uppercase;
+          }
+
+          .subtitle {
+            font-size: 10px;
+            margin: 1mm 0;
+          }
+
+          .shop-info {
+            font-size: 9px;
+            line-height: 1.4;
+          }
+
+          .divider {
+            border-top: 1px dashed #000;
+            margin: 3mm 0;
+          }
+
+          .invoice-title {
+            font-size: 16px;
+            font-weight: 800;
+            margin: 2mm 0;
+          }
+
+          .info {
+            width: 100%;
+            font-size: 10px;
+            line-height: 1.6;
+          }
+
+          .info-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 4mm;
+          }
+
+          .info-row span:last-child {
+            text-align: right;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 2mm;
+          }
+
+          th {
+            border-bottom: 1px solid #000;
+            padding: 2mm 0;
+            font-size: 9px;
+          }
+
+          td {
+            padding: 2mm 0;
+            vertical-align: top;
+            font-size: 10px;
+          }
+
+          .product {
+            width: 48%;
+          }
+
+          .product small {
+            display: block;
+            font-size: 8px;
+            margin-top: 1mm;
+          }
+
+          .qty {
+            width: 15%;
+            text-align: center;
+          }
+
+          .amount {
+            width: 37%;
+            text-align: right;
+          }
+
+          .totals {
+            margin-top: 2mm;
+            font-size: 10px;
+          }
+
+          .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 1.5mm 0;
+          }
+
+          .grand-total {
+            border-top: 1px solid #000;
+            border-bottom: 1px solid #000;
+            margin-top: 1mm;
+            padding: 3mm 0;
+            font-size: 15px;
+            font-weight: 800;
+          }
+
+          .payment {
+            margin-top: 3mm;
+            font-size: 10px;
+          }
+
+          .footer {
+            margin-top: 5mm;
+            text-align: center;
+            font-size: 9px;
+            line-height: 1.5;
+          }
+
+          .thank-you {
+            font-size: 13px;
+            font-weight: 800;
+            margin-bottom: 1mm;
+          }
+
+          @media print {
+            body {
+              width: 80mm;
+            }
+          }
+        </style>
+      </head>
+
+      <body>
+        <div class="receipt">
+
+          <div class="center">
+            <img
+              src="${aadviLogo}"
+              class="shop-logo"
+              alt="Logo"
+            />
+
+            <div class="shop-name">
+              ${shopName}
+            </div>
+
+            <div class="subtitle">
+              Premium Quality Fabrics
+            </div>
+
+            <div class="shop-info">
+              ${shopAddress}
+              ${shopPhone ? `<br />${shopPhone}` : ""}
+              <br />
+              GST: ${shopGstNumber}
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="center invoice-title">
+            TAX INVOICE
+          </div>
+
+          <div class="info">
+            <div class="info-row">
+              <strong>Invoice:</strong>
+              <span>${invoiceNumber}</span>
+            </div>
+
+            <div class="info-row">
+              <strong>Bill No:</strong>
+              <span>${billDetails.billNumber}</span>
+            </div>
+
+            <div class="info-row">
+              <strong>Date:</strong>
+              <span>
+                ${new Date(createdAt).toLocaleDateString("en-IN")}
+              </span>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="info">
+            <div class="info-row">
+              <strong>Customer:</strong>
+              <span>${customerDetails.customerName}</span>
+            </div>
+
+            <div class="info-row">
+              <strong>Mobile:</strong>
+              <span>${customerDetails.mobile}</span>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left;">ITEM</th>
+                <th>QTY</th>
+                <th style="text-align:right;">TOTAL</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              ${receiptItems}
+            </tbody>
+          </table>
+
+          <div class="divider"></div>
+
+          <div class="totals">
+
+            <div class="total-row">
+              <span>Subtotal</span>
+              <strong>
+                ₹${Number(billDetails.subtotal).toFixed(2)}
+              </strong>
+            </div>
+
+            <div class="total-row">
+              <span>GST</span>
+              <strong>
+                ₹${Number(billDetails.gstAmount).toFixed(2)}
+              </strong>
+            </div>
+
+            <div class="total-row">
+              <span>Discount</span>
+              <strong>
+                ₹${Number(billDetails.discountAmount).toFixed(2)}
+              </strong>
+            </div>
+
+            <div class="total-row grand-total">
+              <span>GRAND TOTAL</span>
+              <span>
+                ₹${Number(billDetails.grandTotal).toFixed(2)}
+              </span>
+            </div>
+
+          </div>
+
+          <div class="payment">
+
+            <div class="info-row">
+              <strong>Payment:</strong>
+              <span>
+                ${billDetails.paymentMethod?.toUpperCase() || "-"}
+              </span>
+            </div>
+
+            <div class="info-row">
+              <strong>Status:</strong>
+              <span>
+                ${billDetails.paymentStatus || "-"}
+              </span>
+            </div>
+
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="footer">
+            <div class="thank-you">
+              THANK YOU!
+            </div>
+
+            <div>
+              Thank you for shopping with ${shopName}
+            </div>
+
+            <div>
+              We look forward to serving you again.
+            </div>
+          </div>
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  iframe.srcdoc = receiptHtml;
+
+  iframe.onload = () => {
+    setTimeout(() => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+    }, 300);
+  };
+};
+
   const handleDownloadPdf = async () => {
     try {
       const element = invoiceRef.current;
@@ -123,6 +504,21 @@ export default function InvoicePage() {
         <button onClick={handlePrint} style={{ padding: "10px 20px", borderRadius: 8, background: c.primary, color: "#fff", fontSize: 14, fontWeight: 500, border: "none", cursor: "pointer" }}>
           🖨️ Print
         </button>
+        <button
+  onClick={handleThermalPrint}
+  style={{
+    padding: "10px 20px",
+    borderRadius: 8,
+    background: "#111827",
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: 500,
+    border: "none",
+    cursor: "pointer",
+  }}
+>
+  🧾 Thermal Print
+</button>
         <button onClick={handleDownloadPdf} style={{ padding: "10px 20px", borderRadius: 8, background: c.primary, color: "#fff", fontSize: 14, fontWeight: 500, border: "none", cursor: "pointer" }}>
           ⬇️ Download PDF
         </button>

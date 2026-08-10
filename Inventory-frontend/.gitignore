@@ -30,4 +30,7 @@ dist-ssr
 
 .oxlintrc.json
 
-package-lock.json
+
+
+
+src-tauri/target

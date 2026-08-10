@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, UserPlus, ShoppingBag, ArrowRight, Phone, User, Receipt } from "lucide-react";
+import { Search, UserPlus, ShoppingBag, ArrowRight, Phone, User, Receipt, Plus, X } from "lucide-react";
 import { useBilling } from "../../hook/useBilling";
 import { useToast } from "../../context/ToastContext";
-import { createCustomer, getCustomerByPhone } from "../../features/customers/customerApi";
+import { createCustomer, getCustomerByPhone, getCustomerById } from "../../features/customers/customerApi";
 import Card from "../../components/card";
 import Table from "../../components/Table";
 import Button from "../../components/Button";
-import Input from "../../components/input";
 import { useNavigate } from "react-router-dom";
 import { useInvoice } from "../../hook/useInvoice";
 
@@ -14,9 +13,11 @@ const paymentMethods = ["Cash", "Card", "UPI"];
 
 export default function BillingPage() {
   const {
-    scannedProduct, cartItems, generatedBill, customerId,
+    scannedProduct, cartItems, generatedBill, customerId, currentBill,
+    activeBillId, openBills,
     scanBarcode, addItemToBill, removeItem, updateItemQuantity,
     generateBill, processPayment, clearScanned, clearSession, setCustomer,
+    startNewBill, loadOpenBills, discardBill, switchBill,
   } = useBilling();
   const navigate = useNavigate();
   const { generateInvoice } = useInvoice();
@@ -41,9 +42,52 @@ export default function BillingPage() {
   const [isPaying, setIsPaying] = useState(false);
   const inputRef = useRef(null);
 
+  // the id of the bill this screen is currently working with — every add/generate/pay
+  // call below passes this explicitly, since the backend refuses to guess when more
+  // than one open bill exists.
+  const billId = currentBill?.billId ?? currentBill?._id ?? currentBill?.id ?? null;
+  useEffect(() => {
+    console.log("CURRENT BILL:", currentBill, "RESOLVED billId:", billId);
+  }, [currentBill]);
+
   useEffect(() => {
     console.log("Updated cart:", cartItems);
   }, [cartItems]);
+
+  // restore the waiting queue on mount, in case bills are already open (e.g. page refresh)
+  useEffect(() => {
+    loadOpenBills().catch((err) => console.log("OPEN BILLS ERROR:", err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // resolve each queued bill's customerId into a real name, once, and cache it.
+  // customerId may already come populated as an object (with customerName) from the
+  // backend — only fall back to a separate lookup when it's a bare string id.
+  const [customerNameCache, setCustomerNameCache] = useState({});
+  useEffect(() => {
+    const idsToFetch = [
+      ...new Set(
+        openBills
+          .map((b) => b.customerId)
+          .filter((cid) => cid && typeof cid === "string" && !customerNameCache[cid])
+      ),
+    ];
+    if (idsToFetch.length === 0) return;
+
+    idsToFetch.forEach(async (id) => {
+      try {
+        const res = await getCustomerById(id);
+        const customer = res?.Result ?? res?.data ?? res;
+        const name = customer?.customerName ?? customer?.name ?? null;
+        if (name) {
+          setCustomerNameCache((prev) => ({ ...prev, [id]: name }));
+        }
+      } catch (err) {
+        console.log("CUSTOMER LOOKUP ERROR:", id, err);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openBills]);
 
   useEffect(() => {
     if (customerAttached) {
@@ -61,6 +105,17 @@ export default function BillingPage() {
       return () => document.removeEventListener("click", refocus);
     }
   }, [customerAttached]);
+
+  // explicitly opens one fresh bill for this customer, so we get back a concrete
+  // billId to pass on every subsequent call. Prevents the "multiple open bills" error.
+  const beginBill = async (id) => {
+    try {
+      const bill = await startNewBill(id ?? null);
+      console.log("START NEW BILL RESULT:", bill);
+    } catch (err) {
+      showToast(err || "Failed to start a new bill", "error");
+    }
+  };
 
   const handleSearchCustomer = async () => {
     const phone = searchPhone.trim();
@@ -80,6 +135,7 @@ export default function BillingPage() {
         setCustomer(id);
         setCustomerName(result.customerName ?? result.name ?? "");
         setCustomerPhone(phone);
+        await beginBill(id);
         setCustomerAttached(true);
         showToast("Customer found", "success");
       } else {
@@ -111,6 +167,7 @@ export default function BillingPage() {
       const id = result.id ?? result._id ?? result.customerId;
 
       setCustomer(id);
+      await beginBill(id);
       setCustomerAttached(true);
       showToast("New customer created", "success");
     } catch (err) {
@@ -130,17 +187,139 @@ export default function BillingPage() {
     setCustomerName("");
   };
 
-  const handleSkipCustomer = () => {
+  const handleSkipCustomer = async () => {
+    await beginBill(null);
     setCustomerAttached(true);
   };
 
   const handleChangeCustomer = () => {
+    clearSession();
     setCustomerAttached(false);
     setCustomerNotFound(false);
     setSearchPhone("");
     setCustomerName("");
     setCustomerPhone("");
   };
+
+  // goes back to the search screen to bring in ANOTHER customer —
+  // unlike "Change customer", this does NOT clear the current bill;
+  // it just parks it in the queue so you can switch back later.
+  const handleAddNewCustomer = () => {
+    setCustomerAttached(false);
+    setCustomerNotFound(false);
+    setSearchPhone("");
+    setCustomerName("");
+    setCustomerPhone("");
+  };
+
+  const getBillIdOf = (bill) => bill?.billId ?? bill?._id ?? bill?.id;
+  const getBillLabel = (bill) => {
+    const cid = bill?.customerId;
+    if (cid && typeof cid === "object") {
+      return cid.customerName ?? cid.name ?? cid.mobile ?? "Customer";
+    }
+    if (cid && typeof cid === "string") {
+      return customerNameCache[cid] ?? "Customer";
+    }
+    return "Walk-in";
+  };
+
+  const handleSwitchBill = (bill) => {
+    const label = getBillLabel(bill);
+    const cid = typeof bill?.customerId === "object" ? bill.customerId?._id : bill?.customerId;
+    switchBill(getBillIdOf(bill));
+    setCustomerName(label === "Walk-in" || label === "Customer" ? "" : label);
+    setCustomerPhone(bill?.customerId?.mobile ?? bill?.customerPhone ?? "");
+    setCustomer(cid ?? null);
+    setCustomerAttached(true);
+  };
+
+  const handleDiscardBill = async (id) => {
+    try {
+      await discardBill(id);
+      showToast("Bill discarded", "success");
+      if (id === billId) {
+        setCustomerAttached(false);
+      }
+    } catch (err) {
+      showToast(err || "Failed to discard bill", "error");
+    }
+  };
+
+  // removes every open bill that has nothing rung up yet (heuristic: zero subtotal/grandTotal) —
+  // useful for clearing out test/accidental walk-in bills in bulk.
+  const [isClearingEmpty, setIsClearingEmpty] = useState(false);
+  const handleClearEmptyBills = async () => {
+    const emptyBills = openBills.filter(
+      (b) => !(b.subtotal > 0) && !(b.grandTotal > 0)
+    );
+    console.log("OPEN BILLS (full):", openBills);
+    console.log("EMPTY BILLS TO DISCARD:", emptyBills.map((b) => ({ resolvedId: getBillIdOf(b), raw: b })));
+    if (emptyBills.length === 0) {
+      showToast("No empty bills to clear", "error");
+      return;
+    }
+    setIsClearingEmpty(true);
+    try {
+      await Promise.all(emptyBills.map((b) => discardBill(getBillIdOf(b))));
+      showToast(`Cleared ${emptyBills.length} empty bill(s)`, "success");
+      if (emptyBills.some((b) => getBillIdOf(b) === billId)) {
+        setCustomerAttached(false);
+      }
+    } catch (err) {
+      showToast(err || "Failed to clear empty bills", "error");
+    }
+    setIsClearingEmpty(false);
+  };
+
+  const QueueStrip = () =>
+    openBills.length === 0 ? null : (
+      <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1">
+        {openBills.map((bill) => {
+          const id = getBillIdOf(bill);
+          const isActive = id === billId;
+          return (
+            <div
+              key={id}
+              onClick={() => handleSwitchBill(bill)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer whitespace-nowrap transition ${
+                isActive
+                  ? "bg-brand-600 text-white border-brand-600"
+                  : "bg-white text-brand-600 border-brand-100 hover:bg-brand-50"
+              }`}
+            >
+              <User size={12} />
+              {getBillLabel(bill)}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDiscardBill(id);
+                }}
+                className={isActive ? "text-white/70 hover:text-white" : "text-brand-300 hover:text-red-500"}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          );
+        })}
+        <button
+          onClick={handleAddNewCustomer}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-dashed border-brand-200 text-brand-500 hover:bg-brand-50 whitespace-nowrap"
+        >
+          <Plus size={12} />
+          New customer
+        </button>
+        {openBills.length > 2 && (
+          <button
+            onClick={handleClearEmptyBills}
+            disabled={isClearingEmpty}
+            className="text-xs text-red-500 hover:underline whitespace-nowrap disabled:opacity-50"
+          >
+            {isClearingEmpty ? "Clearing..." : "Clear empty bills"}
+          </button>
+        )}
+      </div>
+    );
 
   const handleScan = async (e) => {
     if (e.key !== "Enter") return;
@@ -149,12 +328,16 @@ export default function BillingPage() {
     console.log("SCAN:", barcode);
     if (!barcode) return;
 
+    if (!billId) {
+      showToast("No active bill yet — try changing customer and starting again", "error");
+      return;
+    }
+
     setIsScanning(true);
     try {
       const product = await scanBarcode(barcode);
-      const result = await addItemToBill(product.productId, 1, customerId);
+      const result = await addItemToBill(product.productId, 1, customerId, billId);
       console.log("ADD ITEM RESULT:", result);
-      console.log("CART ITEMS:", cartItems);
       showToast(`Added ${product.productName} to bill`, "success");
       clearScanned();
     } catch (err) {
@@ -188,7 +371,7 @@ export default function BillingPage() {
     }
     setIsGenerating(true);
     try {
-      await generateBill();
+      await generateBill(billId);
       showToast("Bill generated — select payment method to complete", "success");
     } catch (err) {
       showToast(err || "Failed to generate bill", "error");
@@ -197,25 +380,32 @@ export default function BillingPage() {
   };
 
   const handlePayment = async () => {
-    const billId = generatedBill?.billId;
-    if (!billId) {
+    const payBillId = generatedBill?.billId ?? billId;
+    if (!payBillId) {
       showToast("No bill to pay for", "error");
       return;
     }
     setIsPaying(true);
     try {
-      await processPayment(billId, paymentMethod);
+      await processPayment(payBillId, paymentMethod);
       showToast("Payment completed successfully", "success");
 
-      const invoice = await generateInvoice(billId);
+      const invoice = await generateInvoice(payBillId);
       const invoiceId = invoice.invoiceId ?? invoice.id ?? invoice._id;
 
+      const remaining = openBills.filter((b) => getBillIdOf(b) !== payBillId);
+
       clearSession();
-      setCustomerAttached(false);
-      setCustomerNotFound(false);
-      setSearchPhone("");
-      setCustomerName("");
-      setCustomerPhone("");
+      if (remaining.length > 0) {
+        // another customer is still waiting — drop back to the queue instead of the search screen
+        setCustomerAttached(false);
+      } else {
+        setCustomerAttached(false);
+        setCustomerNotFound(false);
+        setSearchPhone("");
+        setCustomerName("");
+        setCustomerPhone("");
+      }
 
       if (invoiceId) {
         navigate(`/invoices/${invoiceId}`);
@@ -275,6 +465,8 @@ export default function BillingPage() {
         <div className="absolute -bottom-32 -left-20 w-80 h-80 rounded-full bg-brand-100/60 blur-3xl pointer-events-none" />
 
         <div className="w-full max-w-sm relative">
+          {openBills.length > 0 && <QueueStrip />}
+
           {/* Step indicator */}
           <div className="flex items-center justify-center gap-2 mb-5">
             <div className={`h-1.5 rounded-full transition-all ${!customerNotFound ? "w-8 bg-brand-600" : "w-4 bg-brand-200"}`} />
@@ -400,17 +592,25 @@ export default function BillingPage() {
 
   return (
     <div className="w-full min-h-screen bg-brand-50 p-6">
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-xl font-bold text-brand-900">Billing</p>
           <p className="text-sm text-brand-400">
             {customerName ? `Customer: ${customerName}${customerPhone ? ` · ${customerPhone}` : ""}` : "Walk-in customer"}
           </p>
         </div>
-        <button onClick={handleChangeCustomer} className="text-xs text-brand-600 underline">
-          Change customer
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={handleAddNewCustomer} className="text-xs text-brand-600 underline flex items-center gap-1">
+            <Plus size={12} />
+            New customer
+          </button>
+          <button onClick={handleChangeCustomer} className="text-xs text-brand-400 underline">
+            Change customer
+          </button>
+        </div>
       </div>
+
+      <QueueStrip />
 
       <div className="grid grid-cols-3 gap-5">
         <div className="col-span-2 flex flex-col gap-4">
