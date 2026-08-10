@@ -93,7 +93,9 @@ export const startNewBillThunk = createAsyncThunk(
   "billing/startNewBill",
   async (customerId, { rejectWithValue }) => {
     try {
-      return extractData(await startNewBill(customerId));
+      const data = extractData(await startNewBill(customerId));
+      // response is nested: { bill: {...} } — unwrap to the actual bill object
+      return data?.bill ?? data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.Message || "Failed to start new bill");
     }
@@ -106,10 +108,17 @@ export const fetchOpenBillsThunk = createAsyncThunk(
     try {
       const data = extractData(await getOpenBills());
       // normalize whatever shape the backend actually returns (array directly, or nested)
-      if (Array.isArray(data)) return data;
-      if (Array.isArray(data?.bills)) return data.bills;
-      if (Array.isArray(data?.data)) return data.data;
-      return [];
+      let list = [];
+      if (Array.isArray(data)) list = data;
+      else if (Array.isArray(data?.bills)) list = data.bills;
+      else if (Array.isArray(data?.data)) list = data.data;
+
+      // each entry is shaped { bill: {...}, items: [...] } — flatten so the bill's
+      // own fields (_id, customerId, subtotal, etc.) sit at the top level, same as
+      // startNewBill's response, so the rest of the app can treat them identically.
+      return list.map((entry) =>
+        entry?.bill ? { ...entry.bill, items: entry.items ?? [] } : entry
+      );
     } catch (err) {
       return rejectWithValue(err.response?.data?.Message || "Failed to load waiting queue");
     }
