@@ -11,7 +11,7 @@ export default function PageLoader({ isLoading, logoSrc = "/logo.png" }) {
     } else if (visible) {
       // start fade-out, then unmount
       setFadeOut(true);
-      const timer = setTimeout(() => setVisible(false), 400);
+      const timer = setTimeout(() => setVisible(false), 300);
       return () => clearTimeout(timer);
     }
   }, [isLoading]);
@@ -20,7 +20,7 @@ export default function PageLoader({ isLoading, logoSrc = "/logo.png" }) {
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-white/60 transition-opacity duration-400 ${
+      className={`fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-white/60 transition-opacity duration-300 ${
         fadeOut ? "opacity-0" : "opacity-100"
       }`}
     >

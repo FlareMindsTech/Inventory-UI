@@ -49,3 +49,4 @@ export const settleExchange = async ({ returnId, refundMethod }) => {
   const res = await axiosInstance.post("/api/refunds", { returnId, refundMethod });
   return res.data;
 };
+

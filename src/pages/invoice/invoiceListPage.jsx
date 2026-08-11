@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Receipt, RefreshCw, Search, Filter as FilterIcon } from "lucide-react";
+import { Receipt, RefreshCw, Search, Filter as FilterIcon, Repeat } from "lucide-react";
 import Card from "../../components/card";
 import Table from "../../components/Table";
 import Button from "../../components/Button";
@@ -8,6 +8,7 @@ import Chip from "../../components/Chip";
 import MultiSelect from "../../components/MultiSelect";
 import DateRangePicker from "../../components/DateRangerPicker";
 import { useInvoice } from "../../hook/useInvoice";
+import { useExchange } from "../../hook/useExchange";
 import { useToast } from "../../context/ToastContext";
 import Pagination from "../../components/pagination";
 
@@ -23,15 +24,39 @@ const [page, setPage] = useState(1);
     isLoading,
   } = useInvoice();
 
+  // Exchange history — used only to know WHICH invoices have an exchange on
+  // them, so we can badge them in the list. Same read-only pattern as
+  // InvoicePage: no invoice data is touched, this is purely an overlay.
+  const { history, loadExchangeHistory } = useExchange();
+
   const [search, setSearch] = useState("");
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState([]);
   const [dateRange, setDateRange] = useState({ start: null, end: null });
   const [showFilters, setShowFilters] = useState(false);
+  const [onlyExchanged, setOnlyExchanged] = useState(false);
 
   useEffect(() => {
     loadInvoices();
   }, []);
+
+  useEffect(() => {
+    // CAVEAT: loadExchangeHistory is paginated server-side (default limit 10).
+    // To catch exchanges across the whole invoice list (not just the most
+    // recent page of exchanges), we request a large limit here. If a shop
+    // ends up with more exchanges than this, older ones will stop showing up
+    // as badges — at that point this should move to a proper backend lookup
+    // (e.g. an "isExchanged" flag returned directly on GET /api/invoices, or
+    // a dedicated GET /api/returns/invoice-numbers endpoint) rather than
+    // pulling the entire history client-side.
+    loadExchangeHistory({ page: 1, limit: 500, status: "" }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const exchangedInvoiceNumbers = useMemo(
+    () => new Set((history || []).map((h) => h.invoiceNumber).filter(Boolean)),
+    [history]
+  );
 
   const loadInvoices = async () => {
     try {
@@ -86,7 +111,10 @@ const [page, setPage] = useState(1);
       matchesDate = invDate >= start && invDate <= end;
     }
 
-    return matchesSearch && matchesCustomer && matchesPaymentMethod && matchesDate;
+    const matchesExchanged =
+      !onlyExchanged || exchangedInvoiceNumbers.has(inv.invoiceNumber);
+
+    return matchesSearch && matchesCustomer && matchesPaymentMethod && matchesDate && matchesExchanged;
   });
 
   const totalPages = Math.max(
@@ -112,6 +140,20 @@ const paginatedInvoices = filteredInvoices.slice(
     {
       key: "invoiceNumber",
       label: "Invoice No",
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <span>{row.invoiceNumber}</span>
+          {exchangedInvoiceNumbers.has(row.invoiceNumber) && (
+            <span
+              title="This invoice has an exchange on record"
+              className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200"
+            >
+              <Repeat size={10} />
+              Exchanged
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       key: "customerName",
@@ -204,6 +246,17 @@ const paginatedInvoices = filteredInvoices.slice(
           />
         </div>
         <button
+          onClick={() => setOnlyExchanged((prev) => !prev)}
+          className={`border rounded-lg px-4 py-2.5 text-sm font-medium flex items-center gap-2 ${
+            onlyExchanged
+              ? "bg-amber-50 border-amber-300 text-amber-700"
+              : "bg-white border-brand-100 text-brand-900 hover:bg-brand-50"
+          }`}
+        >
+          <Repeat className="w-4 h-4" />
+          Exchanged
+        </button>
+        <button
           onClick={() => setShowFilters((prev) => !prev)}
           className="bg-white border border-brand-100 rounded-lg px-4 py-2.5 text-sm font-medium text-brand-900 flex items-center gap-2 hover:bg-brand-50"
         >
@@ -271,7 +324,7 @@ const paginatedInvoices = filteredInvoices.slice(
     columns={columns}
     data={paginatedInvoices}
     isLoading={isLoading}
-    emptyMessage="No invoices found"
+    emptyMessage={onlyExchanged ? "No exchanged invoices found" : "No invoices found"}
   />
 
   {!isLoading && filteredInvoices.length > 0 && (
