@@ -9,6 +9,7 @@ import Button from "../../components/Button";
 import { useNavigate } from "react-router-dom";
 import { useInvoice } from "../../hook/useInvoice";
 
+
 const paymentMethods = ["Cash", "Card", "UPI"];
 
 export default function BillingPage() {
@@ -611,6 +612,7 @@ export default function BillingPage() {
       </div>
 
       <QueueStrip />
+      
 
       <div className="grid grid-cols-3 gap-5">
         <div className="col-span-2 flex flex-col gap-4">

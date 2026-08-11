@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, Repeat, PackageSearch } from "lucide-react";
 import { useExchange } from "../../hook/useExchange";
 import { useToast } from "../../context/ToastContext";
@@ -33,6 +34,7 @@ export default function ExchangePage() {
     resetForm,
   } = useExchange();
   const { showToast } = useToast();
+  const navigate = useNavigate();
 
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [productQuery, setProductQuery] = useState("");
@@ -49,6 +51,16 @@ export default function ExchangePage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page, statusFilter]);
+
+  // ----- price difference calculation -----
+  const oldPrice =
+    selectedOldProduct?.price ??
+    selectedOldProduct?.productId?.mrp ??
+    selectedOldProduct?.productId?.price ??
+    0;
+  const newPrice = selectedNewProduct?.mrp ?? selectedNewProduct?.price ?? 0;
+  const priceDifference = (Number(newPrice) - Number(oldPrice)) * Number(quantity || 1);
+  const needsSettlement = priceDifference !== 0;
 
   const handleFindInvoice = async () => {
     const number = invoiceNumber.trim();
@@ -100,6 +112,11 @@ export default function ExchangePage() {
       return;
     }
 
+    if (needsSettlement && !settlementMethod) {
+      showToast("Select a settlement method for the price difference", "error");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await createExchange({
@@ -107,7 +124,7 @@ export default function ExchangePage() {
         oldProductId,
         newProductId,
         quantity: Number(quantity),
-        ...(settlementMethod ? { settlementMethod } : {}),
+        ...(needsSettlement ? { settlementMethod } : {}),
       });
       showToast("Exchange completed", "success");
       resetForm();
@@ -200,6 +217,19 @@ export default function ExchangePage() {
       ),
     },
     { key: "date", label: "Date", render: (row) => row.date ?? "-" },
+    {
+      key: "action",
+      label: "",
+      align: "right",
+      render: (row) => (
+        <button
+          onClick={() => navigate(`/invoices/${row.invoiceNumber}`)}
+          className="text-brand-600 text-xs font-semibold hover:underline"
+        >
+          View
+        </button>
+      ),
+    },
   ];
 
   return (
@@ -306,22 +336,44 @@ export default function ExchangePage() {
                 className="w-full border border-brand-100 rounded-lg px-3 py-2.5 text-sm text-brand-900 mb-4 focus:outline-none focus:ring-2 focus:ring-brand-400"
               />
 
-              <label className="text-sm font-medium text-brand-900 block mb-1.5">
-                Settlement method{" "}
-                <span className="text-xs text-brand-400">(only if price differs)</span>
-              </label>
-              <select
-                value={settlementMethod}
-                onChange={(e) => setSettlementMethod(e.target.value)}
-                className="w-full border border-brand-100 rounded-lg px-3 py-2.5 text-sm text-brand-900 bg-white mb-4 focus:outline-none focus:ring-2 focus:ring-brand-400"
+              {/* Price difference / sub amount display */}
+              <div
+                className={`mb-4 rounded-lg px-3 py-2.5 text-sm font-medium border ${
+                  priceDifference > 0
+                    ? "bg-red-50 text-red-700 border-red-100"
+                    : priceDifference < 0
+                    ? "bg-green-50 text-green-700 border-green-100"
+                    : "bg-brand-50 text-brand-700 border-brand-100"
+                }`}
               >
-                <option value="">Not applicable</option>
-                {settlementMethods.map((m) => (
-                  <option key={m} value={m}>
-                    {m.replace("_", " ").toUpperCase()}
-                  </option>
-                ))}
-              </select>
+                <div className="flex justify-between text-xs text-brand-400 mb-1">
+                  <span>Old: ₹{oldPrice}</span>
+                  <span>New: ₹{newPrice}</span>
+                </div>
+                {priceDifference > 0 && `Customer pays ₹${priceDifference}`}
+                {priceDifference < 0 && `Refund to customer ₹${Math.abs(priceDifference)}`}
+                {priceDifference === 0 && "No price difference — no settlement needed"}
+              </div>
+
+              {needsSettlement && (
+                <>
+                  <label className="text-sm font-medium text-brand-900 block mb-1.5">
+                    Settlement method <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={settlementMethod}
+                    onChange={(e) => setSettlementMethod(e.target.value)}
+                    className="w-full border border-brand-100 rounded-lg px-3 py-2.5 text-sm text-brand-900 bg-white mb-4 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  >
+                    <option value="">Select method</option>
+                    {settlementMethods.map((m) => (
+                      <option key={m} value={m}>
+                        {m.replace("_", " ").toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
 
               {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
 

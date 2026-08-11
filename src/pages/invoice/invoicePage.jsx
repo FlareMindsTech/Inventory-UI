@@ -4,6 +4,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useInvoice } from "../../hook/useInvoice";
 import { useSettings } from "../../hook/useSetting";
+import { useExchange } from "../../hook/useExchange";
 import { useToast } from "../../context/ToastContext";
 import aadviLogo from "../../assets/aadvi logo resized.png";
 
@@ -16,12 +17,30 @@ export default function InvoicePage() {
   const { selectedInvoice, fetchInvoiceById, cancelInvoice, isLoading } = useInvoice();
   const { settings, fetchSettings } = useSettings();
 
+  // Exchange/return history — pulled in read-only, purely to annotate the
+  // original invoice line items. This does NOT modify selectedInvoice or
+  // productList in any way; it's a display-only overlay.
+  const { history, loadExchangeHistory } = useExchange();
+
   useEffect(() => {
     if (invoiceId) {
       fetchInvoiceById(invoiceId).catch((err) => showToast(err || "Failed to load invoice", "error"));
     }
     fetchSettings().catch(() => {});
   }, [invoiceId]);
+
+  useEffect(() => {
+    // loadExchangeHistory (as used on ExchangePage) takes { page, status } and
+    // is not currently invoice-scoped server-side, so we pull a page and filter
+    // client-side by invoiceNumber below.
+    //
+    // CAVEAT: if this invoice's exchange lives on a page beyond the default
+    // page size, it won't show up here. If that turns out to be a problem in
+    // practice, the real fix is a backend filter (e.g. GET /api/exchanges?invoiceNumber=...)
+    // rather than looping pages client-side.
+    loadExchangeHistory({ page: 1, status: "" }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePrint = () => window.print();
 
@@ -470,6 +489,12 @@ export default function InvoicePage() {
 
   const { invoiceNumber, invoiceStatus, createdAt, generatedBy, billDetails, customerDetails, productList } = selectedInvoice;
 
+  // Filter the exchange history down to records for this invoice only.
+  // This is purely client-side and does not affect productList/selectedInvoice.
+  const exchangesForInvoice = (history || []).filter(
+    (row) => row.invoiceNumber === invoiceNumber
+  );
+
   // Shop details from Settings API, with fallbacks in case settings haven't loaded yet
   const shopName = settings?.shopName || "AADVI TEXTILES";
   const shopAddress = settings?.address || "123 Main Road, Coimbatore, Tamil Nadu";
@@ -648,7 +673,7 @@ export default function InvoicePage() {
           </div>
 
           {/* Products Table */}
-          <div style={{ marginBottom: 28, borderRadius: 10, overflow: "hidden", border: `1px solid ${c.border}` }}>
+          <div style={{ marginBottom: exchangesForInvoice.length > 0 ? 16 : 28, borderRadius: 10, overflow: "hidden", border: `1px solid ${c.border}` }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: c.primary }}>
@@ -670,7 +695,19 @@ export default function InvoicePage() {
                 </tr>
               </thead>
               <tbody>
-                {productList.map((item, index) => (
+                {productList.map((item, index) => {
+                  // Match this line item to an exchange record by product name.
+                  // NOTE: matching on name rather than an id, because the exchange
+                  // history records (from /api/returns/history) only give us
+                  // productName — not a productId we could match more reliably.
+                  // If two different line items on the same invoice happen to
+                  // share a product name, both would get tagged even if only one
+                  // was actually returned. Fine for now given what the API returns.
+                  const wasReturned = exchangesForInvoice.some(
+                    (ex) => ex.productName === item.productName
+                  );
+
+                  return (
                   <tr 
                     key={item.itemId} 
                     style={{ 
@@ -679,9 +716,29 @@ export default function InvoicePage() {
                     }}
                   >
                     <td style={{ padding: "14px 16px" }}>
-                      <p style={{ fontWeight: 600, margin: 0, color: c.heading, fontSize: 13 }}>
-                        {item.productName}
-                      </p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <p style={{ fontWeight: 600, margin: 0, color: c.heading, fontSize: 13 }}>
+                          {item.productName}
+                        </p>
+                        {wasReturned && (
+                          <span
+                            className="no-print"
+                            title="This item was returned/exchanged on this invoice"
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 600,
+                              padding: "2px 8px",
+                              borderRadius: 999,
+                              background: "#FBEFE6",
+                              color: c.primary,
+                              border: `1px solid ${c.secondary}`,
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Returned
+                          </span>
+                        )}
+                      </div>
                       <p style={{ fontSize: 11, color: c.textLight, margin: "2px 0 0" }}>
                         {item.productCode}
                       </p>
@@ -699,10 +756,89 @@ export default function InvoicePage() {
                       ₹{item.total}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
+
+          {/* Exchange / Return Activity — annotation only, does not alter productList above */}
+          {exchangesForInvoice.length > 0 && (
+            <div
+              className="no-print"
+              style={{
+                marginBottom: 28,
+                borderRadius: 10,
+                overflow: "hidden",
+                border: `1px solid ${c.border}`,
+                background: c.bg,
+              }}
+            >
+              <div
+                style={{
+                  padding: "12px 16px",
+                  background: "#FBEFE6",
+                  borderBottom: `1px solid ${c.border}`,
+                }}
+              >
+                <h3
+                  style={{
+                    fontWeight: 700,
+                    margin: 0,
+                    color: c.primary,
+                    fontSize: 13,
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                  }}
+                >
+                  Exchange / Return Activity
+                </h3>
+              </div>
+              <div style={{ padding: "4px 16px" }}>
+                {/*
+                  NOTE: GET /api/returns/history does not currently return the
+                  new product (verified against the raw response — it only has
+                  approvedBy, date, invoiceNumber, productName, quantity,
+                  refundAmount, returnId, status, type). So we can only say
+                  what was exchanged OUT, not what it became. Once the backend
+                  adds newProductName (or a populated newProductId) to that
+                  response, replace the single <span> below with an
+                  "oldName → newName" line.
+                */}
+                {exchangesForInvoice.map((ex, i) => {
+                  const oldName = ex.productName ?? "—";
+                  const dateLabel = ex.date
+                    ? new Date(ex.date).toLocaleDateString("en-IN")
+                    : "-";
+
+                  return (
+                    <div
+                      key={ex.returnId ?? ex._id ?? i}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "10px 0",
+                        borderBottom:
+                          i === exchangesForInvoice.length - 1
+                            ? "none"
+                            : `1px solid ${c.border}`,
+                        fontSize: 13,
+                      }}
+                    >
+                      <span style={{ color: c.heading }}>
+                        {oldName} exchanged{ex.quantity ? ` (x${ex.quantity})` : ""}
+                      </span>
+                      <span style={{ color: c.textLight, fontSize: 12, whiteSpace: "nowrap", marginLeft: 12 }}>
+                        {ex.status ? `${ex.status} · ` : ""}
+                        {dateLabel}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Totals */}
           <div style={{ display: "flex", justifyContent: "flex-end" }}>

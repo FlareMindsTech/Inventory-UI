@@ -33,6 +33,8 @@ import LowStockReportPage from "./pages/reports/LowStockReportPage";
 import BestSellingReportPage from "./pages/reports/BestSellingReportPage";
 import SettingsPage from "./pages/settings/settingPage";
 
+import aadviLogo from "./assets/aadvi logo resized.png";
+
 export default function App() {
   const { user } = useAuth();
   const userRole = user?.roleName?.toLowerCase() || user?.role?.toLowerCase();
@@ -48,7 +50,7 @@ export default function App() {
 
   return (
     <>
-      <PageLoader isLoading={isLoading} logoSrc="src/assets/aadvi logo resized.png" />
+      <PageLoader isLoading={isLoading} logoSrc={aadviLogo} />
 
       <Routes>
         {/* Redirect root to login */}
@@ -69,7 +71,7 @@ export default function App() {
             <Route path="/billing" element={<BillingPage />} />
             <Route path="/factory-inventory" element={<FactoryOutlet />} />
             <Route path="/retail-inventory" element={<RetailInventoryPage />} />
-            <Route element={<ProtectedRoute allowedRoles={["owner", "admin"]} />}>
+            <Route element={<ProtectedRoute allowedRoles={["owner", "admin","staff"]} />}>
               <Route path="/staff" element={<StaffList />} />
               <Route path="/categories" element={<CategoryList />} />
               <Route path="/invoices" element={<InvoiceListPage />} />
