@@ -17,9 +17,7 @@ export default function InvoicePage() {
   const { selectedInvoice, fetchInvoiceById, cancelInvoice, isLoading } = useInvoice();
   const { settings, fetchSettings } = useSettings();
 
-  // Exchange/return history — pulled in read-only, purely to annotate the
-  // original invoice line items. This does NOT modify selectedInvoice or
-  // productList in any way; it's a display-only overlay.
+
   const { history, loadExchangeHistory } = useExchange();
 
   useEffect(() => {
@@ -30,16 +28,9 @@ export default function InvoicePage() {
   }, [invoiceId]);
 
   useEffect(() => {
-    // loadExchangeHistory (as used on ExchangePage) takes { page, status } and
-    // is not currently invoice-scoped server-side, so we pull a page and filter
-    // client-side by invoiceNumber below.
-    //
-    // CAVEAT: if this invoice's exchange lives on a page beyond the default
-    // page size, it won't show up here. If that turns out to be a problem in
-    // practice, the real fix is a backend filter (e.g. GET /api/exchanges?invoiceNumber=...)
-    // rather than looping pages client-side.
+   
     loadExchangeHistory({ page: 1, status: "" }).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, []);
 
   const handlePrint = () => window.print();
@@ -698,11 +689,11 @@ export default function InvoicePage() {
                 {productList.map((item, index) => {
                   // Match this line item to an exchange record by product name.
                   // NOTE: matching on name rather than an id, because the exchange
-                  // history records (from /api/returns/history) only give us
-                  // productName — not a productId we could match more reliably.
-                  // If two different line items on the same invoice happen to
-                  // share a product name, both would get tagged even if only one
-                  // was actually returned. Fine for now given what the API returns.
+                  // history records only give us productName — not a productId we
+                  // could match more reliably. If two different line items on the
+                  // same invoice happen to share a product name, both would get
+                  // tagged even if only one was actually exchanged. Fine for now
+                  // given what the API returns.
                   const wasReturned = exchangesForInvoice.some(
                     (ex) => ex.productName === item.productName
                   );
@@ -735,7 +726,7 @@ export default function InvoicePage() {
                               whiteSpace: "nowrap",
                             }}
                           >
-                            Returned
+                            Exchanged
                           </span>
                         )}
                       </div>
@@ -796,20 +787,23 @@ export default function InvoicePage() {
               </div>
               <div style={{ padding: "4px 16px" }}>
                 {/*
-                  NOTE: GET /api/returns/history does not currently return the
-                  new product (verified against the raw response — it only has
-                  approvedBy, date, invoiceNumber, productName, quantity,
-                  refundAmount, returnId, status, type). So we can only say
-                  what was exchanged OUT, not what it became. Once the backend
-                  adds newProductName (or a populated newProductId) to that
-                  response, replace the single <span> below with an
-                  "oldName → newName" line.
+                  The exchange history response now includes exchangedFor /
+                  exchangedForProduct, so old → new can be shown directly.
+                  refundAmount is still always 0 from the backend (confirmed
+                  bug), so the amount below uses priceDifference instead,
+                  which is populated correctly. Direction (refund vs customer
+                  pays) comes from exchangeAction when present, falling back
+                  to the sign of priceDifference.
                 */}
                 {exchangesForInvoice.map((ex, i) => {
                   const oldName = ex.productName ?? "—";
+                  const newName = ex.exchangedForProduct?.productName ?? ex.exchangedFor;
                   const dateLabel = ex.date
                     ? new Date(ex.date).toLocaleDateString("en-IN")
                     : "-";
+                  const diff = ex.priceDifference;
+                  const hasAmount = diff !== undefined && diff !== null && diff !== 0;
+                  const isRefund = hasAmount && (diff < 0 || ex.exchangeAction === "Refund Customer");
 
                   return (
                     <div
@@ -824,14 +818,29 @@ export default function InvoicePage() {
                             ? "none"
                             : `1px solid ${c.border}`,
                         fontSize: 13,
+                        gap: 12,
                       }}
                     >
                       <span style={{ color: c.heading }}>
-                        {oldName} exchanged{ex.quantity ? ` (x${ex.quantity})` : ""}
+                        {oldName}
+                        {newName && (
+                          <>
+                            {" "}→{" "}
+                            <span style={{ fontWeight: 600 }}>{newName}</span>
+                          </>
+                        )}
+                        {ex.quantity ? ` (x${ex.quantity})` : ""}
                       </span>
-                      <span style={{ color: c.textLight, fontSize: 12, whiteSpace: "nowrap", marginLeft: 12 }}>
-                        {ex.status ? `${ex.status} · ` : ""}
-                        {dateLabel}
+                      <span style={{ display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
+                        {hasAmount && (
+                          <span style={{ color: isRefund ? c.success : c.primary, fontWeight: 700, fontSize: 12 }}>
+                            {isRefund ? "Refund " : "Pays "}₹{Math.abs(diff).toFixed(2)}
+                          </span>
+                        )}
+                        <span style={{ color: c.textLight, fontSize: 12 }}>
+                          {ex.status ? `${ex.status} · ` : ""}
+                          {dateLabel}
+                        </span>
                       </span>
                     </div>
                   );

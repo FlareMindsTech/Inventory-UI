@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 import { useAuth } from "../hook/useAuth";
 import { useToast } from "../context/ToastContext";
 
@@ -8,6 +9,19 @@ export default function Navbar() {
   const { showToast } = useToast();
 
   const handleLogout = async () => {
+    const result = await Swal.fire({
+      title: "Log out?",
+      text: "You'll need to sign in again to continue.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, log out",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+    });
+
+    if (!result.isConfirmed) return;
+
     await signOut();
     showToast("Logged out successfully", "success");
     navigate("/login");

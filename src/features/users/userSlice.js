@@ -59,7 +59,7 @@ export const resetPasswordThunk = createAsyncThunk(
       const response = await changePassword({ username, password });
       return response;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.Message || "Failed to reset password");
+      return rejectWithValue(err.response?.data?.message || "Failed to reset password");
     }
   }
 );

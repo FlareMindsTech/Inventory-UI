@@ -5,11 +5,11 @@ export const getInvoices = async (page = 1, limit = 10) => {
   const { data } = await axiosInstance.get(
     `/api/invoices?page=${page}&limit=${limit}`
   );
-  console.log("invoice",data);
+ 
   return data;
 };
 
-// Generate invoice from bill
+
 export const generateInvoice = async (billId) => {
   const { data } = await axiosInstance.post("/api/invoices", {
     billId,
@@ -17,7 +17,7 @@ export const generateInvoice = async (billId) => {
   return data;
 };
 
-// Get invoice details
+
 export const getInvoiceById = async (invoiceId) => {
   const { data } = await axiosInstance.get(
     `/api/invoices/${invoiceId}`
@@ -25,7 +25,7 @@ export const getInvoiceById = async (invoiceId) => {
   return data;
 };
 
-// Download invoice PDF
+
 export const downloadInvoicePdf = async (invoiceId) => {
   const response = await axiosInstance.get(
     `/api/invoices/${invoiceId}/pdf`,
@@ -37,7 +37,7 @@ export const downloadInvoicePdf = async (invoiceId) => {
   return response;
 };
 
-// Cancel invoice
+
 export const cancelInvoice = async (invoiceId, reason) => {
   const { data } = await axiosInstance.put(
     `/api/invoices/${invoiceId}/cancel`,
@@ -49,7 +49,6 @@ export const cancelInvoice = async (invoiceId, reason) => {
   return data;
 };
 
-// Browser print
 export const printInvoice = () => {
   window.print();
 };

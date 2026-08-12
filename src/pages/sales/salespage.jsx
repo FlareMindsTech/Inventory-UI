@@ -10,7 +10,7 @@ function money(value) {
   return num.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-/* ---------- Accent theme per period ---------- */
+
 const THEMES = {
   daily: {
     ring: "ring-amber-200",
@@ -38,7 +38,7 @@ const THEMES = {
   }
 };
 
-/* ---------- Metric-specific colors ---------- */
+
 const METRIC_COLOR = {
   revenue: "text-emerald-600",
   bills: "text-sky-600",
@@ -46,7 +46,7 @@ const METRIC_COLOR = {
   avg: "text-violet-600"
 };
 
-/* ---------- Ledger line: label ..... value, receipt-style ---------- */
+
 function LedgerLine({ label, value, colorClass = "text-neutral-700", emphasis = false }) {
   return (
     <div className="flex items-baseline gap-2 py-1.5">
@@ -63,7 +63,7 @@ function LedgerLine({ label, value, colorClass = "text-neutral-700", emphasis = 
   );
 }
 
-/* ---------- Small stamped badge for payment methods, color-rotated ---------- */
+
 const STAMP_COLORS = [
   "border-emerald-300 bg-emerald-50 text-emerald-700",
   "border-sky-300 bg-sky-50 text-sky-700",
@@ -83,7 +83,7 @@ function PaymentStamp({ method, amount, index = 0 }) {
   );
 }
 
-/* ---------- Receipt card wrapper: perforated top edge, colored ring + icon ---------- */
+
 function ReceiptCard({ icon: Icon, title, subtitle, theme, children }) {
   const t = THEMES[theme] ?? THEMES.monthly;
   return (
@@ -110,7 +110,6 @@ function ReceiptCard({ icon: Icon, title, subtitle, theme, children }) {
   );
 }
 
-/* ---------- Mini bar chart, plain divs, colored per theme ---------- */
 function MiniBars({ data, labelKey, valueKey, theme }) {
   const t = THEMES[theme] ?? THEMES.monthly;
   const max = Math.max(...data.map((d) => Number(d[valueKey]) || 0), 1);

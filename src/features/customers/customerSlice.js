@@ -1,4 +1,4 @@
-// src/features/customer/customerSlice.js
+
 
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
@@ -15,7 +15,7 @@ import {
 const extractData = (response) =>
   response.Result || response.data || response.result || response;
 
-// Get All Customers
+
 export const fetchCustomersThunk = createAsyncThunk(
   "customer/fetchAll",
   async (_, { rejectWithValue }) => {
@@ -30,7 +30,7 @@ export const fetchCustomersThunk = createAsyncThunk(
   }
 );
 
-// Get Customer By ID
+
 export const fetchCustomerThunk = createAsyncThunk(
   "customer/fetchById",
   async (customerId, { rejectWithValue }) => {
@@ -45,7 +45,7 @@ export const fetchCustomerThunk = createAsyncThunk(
   }
 );
 
-// Get Customer By Mobile
+
 export const fetchCustomerByPhoneThunk = createAsyncThunk(
   "customer/fetchByPhone",
   async (mobile, { rejectWithValue }) => {
@@ -60,7 +60,7 @@ export const fetchCustomerByPhoneThunk = createAsyncThunk(
   }
 );
 
-// Create Customer
+
 export const createCustomerThunk = createAsyncThunk(
   "customer/create",
   async (data, { rejectWithValue }) => {
@@ -75,7 +75,7 @@ export const createCustomerThunk = createAsyncThunk(
   }
 );
 
-// Update By ID
+
 export const updateCustomerThunk = createAsyncThunk(
   "customer/update",
   async ({ customerId, data }, { rejectWithValue }) => {
@@ -90,7 +90,7 @@ export const updateCustomerThunk = createAsyncThunk(
   }
 );
 
-// Update By Mobile
+
 export const updateCustomerByPhoneThunk = createAsyncThunk(
   "customer/updateByPhone",
   async ({ mobile, data }, { rejectWithValue }) => {
@@ -105,7 +105,7 @@ export const updateCustomerByPhoneThunk = createAsyncThunk(
   }
 );
 
-// Delete
+
 export const deleteCustomerThunk = createAsyncThunk(
   "customer/delete",
   async (customerId, { rejectWithValue }) => {
@@ -120,7 +120,6 @@ export const deleteCustomerThunk = createAsyncThunk(
   }
 );
 
-// Purchase History
 export const fetchPurchaseHistoryThunk = createAsyncThunk(
   "customer/history",
   async (customerId, { rejectWithValue }) => {
@@ -153,7 +152,7 @@ const customerSlice = createSlice({
   extraReducers: (builder) => {
     builder
 
-      // Get All Customers
+     
       .addCase(fetchCustomersThunk.pending, (state) => {
         state.status = "loading";
         state.error = null;
@@ -167,23 +166,20 @@ const customerSlice = createSlice({
         state.error = action.payload;
       })
 
-      // Get Customer By ID
       .addCase(fetchCustomerThunk.fulfilled, (state, action) => {
         state.customer = action.payload;
       })
 
-      // Get Customer By Phone
       .addCase(fetchCustomerByPhoneThunk.fulfilled, (state, action) => {
         state.customer = action.payload;
       })
 
-      // Create
+  
       .addCase(createCustomerThunk.fulfilled, (state, action) => {
         state.customer = action.payload;
         state.customers.unshift(action.payload);
       })
 
-      // Update By ID
       .addCase(updateCustomerThunk.fulfilled, (state, action) => {
         state.customer = action.payload;
 
@@ -195,7 +191,7 @@ const customerSlice = createSlice({
         );
       })
 
-      // Update By Phone
+    
       .addCase(updateCustomerByPhoneThunk.fulfilled, (state, action) => {
         state.customer = action.payload;
 
@@ -207,7 +203,7 @@ const customerSlice = createSlice({
         );
       })
 
-      // Delete
+   
       .addCase(deleteCustomerThunk.fulfilled, (state, action) => {
         state.customers = state.customers.filter(
           (c) => (c.customerId ?? c._id) !== action.payload
@@ -218,7 +214,7 @@ const customerSlice = createSlice({
         }
       })
 
-      // Purchase History
+   
       .addCase(fetchPurchaseHistoryThunk.fulfilled, (state, action) => {
         state.purchaseHistory = action.payload || [];
       });

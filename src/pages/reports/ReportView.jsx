@@ -12,7 +12,7 @@ export default function ReportView({
 
   useEffect(() => {
     onFetch(range.startDate, range.endDate);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   const runFetch = () => onFetch(range.startDate, range.endDate);

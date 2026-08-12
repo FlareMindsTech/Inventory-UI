@@ -41,16 +41,9 @@ const [page, setPage] = useState(1);
   }, []);
 
   useEffect(() => {
-    // CAVEAT: loadExchangeHistory is paginated server-side (default limit 10).
-    // To catch exchanges across the whole invoice list (not just the most
-    // recent page of exchanges), we request a large limit here. If a shop
-    // ends up with more exchanges than this, older ones will stop showing up
-    // as badges — at that point this should move to a proper backend lookup
-    // (e.g. an "isExchanged" flag returned directly on GET /api/invoices, or
-    // a dedicated GET /api/returns/invoice-numbers endpoint) rather than
-    // pulling the entire history client-side.
+   
     loadExchangeHistory({ page: 1, limit: 500, status: "" }).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   const exchangedInvoiceNumbers = useMemo(

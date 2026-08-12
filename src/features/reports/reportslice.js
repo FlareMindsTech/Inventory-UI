@@ -24,7 +24,7 @@ const makeThunk = (name, apiCall) =>
     }
   });
 
-/* ---------- thunks, one per endpoint ---------- */
+
 export const fetchDashboardSummary = makeThunk("dashboard", () =>
   reportsAPI.getDashboardSummary()
 );
@@ -61,7 +61,6 @@ export const fetchStaffSales = makeThunk("staffSales", (p) =>
   reportsAPI.getSalesByStaff(p?.staffId)
 );
 
-/* ---------- state ---------- */
 const emptySection = { data: null, loading: false, error: null };
 
 const initialState = {

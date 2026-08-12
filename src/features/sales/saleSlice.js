@@ -24,7 +24,7 @@ export const fetchDailySales = createAsyncThunk(
       endDate
     );
 
-    console.log("DAILY API RESPONSE:", res.data);
+  
 
     return res.data.Result || res.data.result || res.data;
 

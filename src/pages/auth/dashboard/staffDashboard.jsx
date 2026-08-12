@@ -16,7 +16,7 @@ const MUTED = "#78716C";
 export default function StaffDashboard() {
   const navigate = useNavigate();
 
-  // NOTE: assumes auth user is stored at state.auth.user with an _id field.
+ 
   const user = useSelector((state) => state.auth?.user);
 
   const { staffSales, lowStock, getSalesByStaff, getLowStockReport } = useReports();
@@ -28,7 +28,6 @@ export default function StaffDashboard() {
     }
     getLowStockReport();
     fetchInvoices(1, 5).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?._id]);
 
   const sales = staffSales?.data;
@@ -45,9 +44,7 @@ export default function StaffDashboard() {
     ? lowStockData.items
     : [];
 
-  // NOTE: assumes getSalesByStaff response includes a dailyBreakdown array,
-  // mirroring the shape of /api/reports/sales. Confirm and adjust field
-  // names once you see the real response.
+
   const salesTrend = Array.isArray(sales?.dailyBreakdown)
     ? sales.dailyBreakdown.map((d) => ({
         day: formatDate(d.date),
@@ -55,8 +52,7 @@ export default function StaffDashboard() {
       }))
     : [];
 
-  // `invoices` comes straight from your invoiceSlice — handle both a bare
-  // array and a { items / invoices: [...] } envelope just in case.
+
   const invoiceItems = Array.isArray(invoices)
     ? invoices
     : Array.isArray(invoices?.invoices)
@@ -65,9 +61,6 @@ export default function StaffDashboard() {
     ? invoices.items
     : [];
 
-  // NOTE: no confirmed staffId filter on the invoices list endpoint — this
-  // softly filters to this staff member if the field exists on each
-  // invoice, otherwise falls back to showing the store's recent invoices.
   const myInvoices = user?._id
     ? invoiceItems.filter(
         (inv) =>

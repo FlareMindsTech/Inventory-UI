@@ -43,27 +43,23 @@ export default function BillingPage() {
   const [isPaying, setIsPaying] = useState(false);
   const inputRef = useRef(null);
 
-  // the id of the bill this screen is currently working with — every add/generate/pay
-  // call below passes this explicitly, since the backend refuses to guess when more
-  // than one open bill exists.
+ 
   const billId = currentBill?.billId ?? currentBill?._id ?? currentBill?.id ?? null;
   useEffect(() => {
-    console.log("CURRENT BILL:", currentBill, "RESOLVED billId:", billId);
+   
   }, [currentBill]);
 
   useEffect(() => {
-    console.log("Updated cart:", cartItems);
+
   }, [cartItems]);
 
-  // restore the waiting queue on mount, in case bills are already open (e.g. page refresh)
-  useEffect(() => {
-    loadOpenBills().catch((err) => console.log("OPEN BILLS ERROR:", err));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  
+  // useEffect(() => {
+  //   loadOpenBills().catch((err) => console.log("OPEN BILLS ERROR:", err));
+    
+  // }, []);
 
-  // resolve each queued bill's customerId into a real name, once, and cache it.
-  // customerId may already come populated as an object (with customerName) from the
-  // backend — only fall back to a separate lookup when it's a bare string id.
+
   const [customerNameCache, setCustomerNameCache] = useState({});
   useEffect(() => {
     const idsToFetch = [
@@ -107,12 +103,11 @@ export default function BillingPage() {
     }
   }, [customerAttached]);
 
-  // explicitly opens one fresh bill for this customer, so we get back a concrete
-  // billId to pass on every subsequent call. Prevents the "multiple open bills" error.
+ 
   const beginBill = async (id) => {
     try {
       const bill = await startNewBill(id ?? null);
-      console.log("START NEW BILL RESULT:", bill);
+      
     } catch (err) {
       showToast(err || "Failed to start a new bill", "error");
     }
@@ -128,7 +123,7 @@ export default function BillingPage() {
     setIsSearching(true);
     try {
       const lookup = await getCustomerByPhone(phone);
-      console.log("phone lookup raw:", lookup);
+    
       const result = lookup?.Result ?? lookup?.data ?? lookup;
 
       if (result && (result.customerId || result._id || result.id)) {
@@ -144,7 +139,7 @@ export default function BillingPage() {
         setCustomerNotFound(true);
       }
     } catch (err) {
-      console.log("No existing customer for this phone:", err?.response?.status);
+     
       setCustomerPhone(phone);
       setCustomerNotFound(true);
     }
@@ -162,7 +157,7 @@ export default function BillingPage() {
         customerName: customerName.trim(),
         mobile: customerPhone,
       });
-      console.log("created:", created);
+    
 
       const result = created.Result || created.data || created;
       const id = result.id ?? result._id ?? result.customerId;
@@ -254,8 +249,7 @@ export default function BillingPage() {
     const emptyBills = openBills.filter(
       (b) => !(b.subtotal > 0) && !(b.grandTotal > 0)
     );
-    console.log("OPEN BILLS (full):", openBills);
-    console.log("EMPTY BILLS TO DISCARD:", emptyBills.map((b) => ({ resolvedId: getBillIdOf(b), raw: b })));
+  
     if (emptyBills.length === 0) {
       showToast("No empty bills to clear", "error");
       return;
@@ -326,7 +320,7 @@ export default function BillingPage() {
     if (e.key !== "Enter") return;
     const barcode = scanInput.trim();
     setScanInput("");
-    console.log("SCAN:", barcode);
+   
     if (!barcode) return;
 
     if (!billId) {
@@ -338,7 +332,7 @@ export default function BillingPage() {
     try {
       const product = await scanBarcode(barcode);
       const result = await addItemToBill(product.productId, 1, customerId, billId);
-      console.log("ADD ITEM RESULT:", result);
+    
       showToast(`Added ${product.productName} to bill`, "success");
       clearScanned();
     } catch (err) {

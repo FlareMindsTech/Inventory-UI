@@ -20,14 +20,14 @@ export const useRetail = () => {
   );
 
   return {
-    // State
+  
     retailProducts: inventory,
     history,
     lowStock,
     isLoading: status === "loading",
     error,
     
-    // Actions
+  
     fetchRetailInventory: () => {
       
       return dispatch(fetchRetailInventoryThunk());

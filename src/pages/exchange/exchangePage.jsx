@@ -1,13 +1,27 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Repeat, PackageSearch } from "lucide-react";
+import { Search, Repeat, PackageSearch, Filter as FilterIcon } from "lucide-react";
 import { useExchange } from "../../hook/useExchange";
 import { useToast } from "../../context/ToastContext";
 import Card from "../../components/card";
 import Table from "../../components/Table";
 import Button from "../../components/Button";
+import Pagination from "../../components/pagination";
+import MultiSelect from "../../components/MultiSelect";
+import DateRangePicker from "../../components/DateRangerPicker";
+import Chip from "../../components/Chip";
 
 const settlementMethods = ["cash", "card", "upi", "store_credit"];
+const statusOptions = ["Approved", "Completed", "Rejected", "Exchanged"];
+
+// Turns a raw Mongo ID like "6a7c1f6420133f8a5b8e52a8" into a short, readable
+// reference like "REF-8E52A8" (last 6 chars, uppercased). The full ID is kept
+// in the title attribute for anyone who needs to look it up exactly.
+function formatRef(id) {
+  if (!id) return "—";
+  const tail = String(id).slice(-6).toUpperCase();
+  return `REF-${tail}`;
+}
 
 export default function ExchangePage() {
   const {
@@ -42,17 +56,34 @@ export default function ExchangePage() {
   const [settlementMethod, setSettlementMethod] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // load exchange history whenever the page's filters/page change
+  // ----- Exchange history filters, styled like ProductList: a top
+  // search bar + Filters toggle + Search button, then a filter panel
+  // where every dropdown filter is a MultiSelect (options built from
+  // whatever's in the currently loaded history, same pattern as
+  // ProductList's Category filter being built from `categories`). -----
+  const [historySearch, setHistorySearch] = useState("");
+  const [showHistoryFilters, setShowHistoryFilters] = useState(false);
+  const [selectedNames, setSelectedNames] = useState([]);
+  const [selectedInvoices, setSelectedInvoices] = useState([]);
+  const [dateRange, setDateRange] = useState({ start: null, end: null });
+
+  // statusFilter from the hook is treated as a comma-separated string so it
+  // stays the single source of truth driving the useEffect below — the
+  // MultiSelect just reads/writes it as an array view of that same string.
+  const selectedStatuses = statusFilter ? statusFilter.split(",").filter(Boolean) : [];
+  const handleStatusChange = (values) => {
+    changeStatusFilter(values.join(","));
+  };
+
   useEffect(() => {
     loadExchangeHistory({ page: pagination.page, status: statusFilter }).then((res) => {
-      console.log("EXCHANGE HISTORY RESULT:", res);
+     
     }).catch((err) => {
-      console.log("EXCHANGE HISTORY ERROR:", err);
+    
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page, statusFilter]);
 
-  // ----- price difference calculation -----
   const oldPrice =
     selectedOldProduct?.price ??
     selectedOldProduct?.productId?.mrp ??
@@ -70,9 +101,9 @@ export default function ExchangePage() {
     }
     try {
       const result = await findInvoice(number);
-      console.log("INVOICE RESULT:", result);
+     
     } catch (err) {
-      console.log("INVOICE ERROR:", err);
+      
       showToast(err || "Invoice not found", "error");
     }
   };
@@ -138,6 +169,76 @@ export default function ExchangePage() {
     setIsSubmitting(false);
   };
 
+  // Option lists for the MultiSelect filters, derived from whatever history
+  // rows are currently loaded — same idea as ProductList building
+  // `categoryOptions` off the `categories` list. These will only include
+  // names/invoices seen on the loaded page(s), not the whole dataset.
+  const nameOptions = useMemo(() => {
+    const set = new Set();
+    (history || []).forEach((row) => {
+      if (row.productName) set.add(row.productName);
+      const exchangedForName = row.exchangedForProduct?.productName ?? row.exchangedFor;
+      if (exchangedForName) set.add(exchangedForName);
+    });
+    return Array.from(set).sort();
+  }, [history]);
+
+  const invoiceOptions = useMemo(() => {
+    const set = new Set();
+    (history || []).forEach((row) => {
+      if (row.invoiceNumber) set.add(row.invoiceNumber);
+    });
+    return Array.from(set).sort();
+  }, [history]);
+
+  // Client-side filter: top search bar (matches product, exchanged-for
+  // product, invoice number, or approver) + Product Name / Invoice Number
+  // MultiSelects + date range. Status is applied server-side via
+  // statusFilter (see useEffect above). All applied on top of whatever
+  // history page is already loaded — see caveat on loadExchangeHistory below.
+  const filteredHistory = useMemo(() => {
+    let rows = history || [];
+
+    const matchText = (row, q) => {
+      const exchangedForName = row.exchangedForProduct?.productName ?? row.exchangedFor ?? "";
+      return (
+        row.productName?.toLowerCase().includes(q) ||
+        exchangedForName.toLowerCase().includes(q) ||
+        row.invoiceNumber?.toLowerCase().includes(q) ||
+        row.approvedBy?.toLowerCase().includes(q)
+      );
+    };
+
+    const topQuery = historySearch.trim().toLowerCase();
+    if (topQuery) {
+      rows = rows.filter((row) => matchText(row, topQuery));
+    }
+
+    if (selectedNames.length > 0) {
+      rows = rows.filter((row) => {
+        const exchangedForName = row.exchangedForProduct?.productName ?? row.exchangedFor;
+        return selectedNames.includes(row.productName) || selectedNames.includes(exchangedForName);
+      });
+    }
+
+    if (selectedInvoices.length > 0) {
+      rows = rows.filter((row) => selectedInvoices.includes(row.invoiceNumber));
+    }
+
+    if (dateRange.start || dateRange.end) {
+      rows = rows.filter((row) => {
+        if (!row.date) return false;
+        const rowDate = new Date(row.date);
+        if (Number.isNaN(rowDate.getTime())) return false;
+        if (dateRange.start && rowDate < dateRange.start) return false;
+        if (dateRange.end && rowDate > dateRange.end) return false;
+        return true;
+      });
+    }
+
+    return rows;
+  }, [history, historySearch, selectedNames, selectedInvoices, dateRange]);
+
   const invoiceItemColumns = [
     {
       key: "product",
@@ -159,6 +260,7 @@ export default function ExchangePage() {
       align: "right",
       render: (row) => (
         <button
+          type="button"
           onClick={() => handleSelectOldProduct(row)}
           className="text-brand-600 text-xs font-semibold hover:underline"
         >
@@ -187,6 +289,7 @@ export default function ExchangePage() {
       align: "right",
       render: (row) => (
         <button
+          type="button"
           onClick={() => handleSelectNewProduct(row)}
           className="text-brand-600 text-xs font-semibold hover:underline"
         >
@@ -197,21 +300,56 @@ export default function ExchangePage() {
   ];
 
   const historyColumns = [
-    { key: "ref", label: "Ref #", render: (row) => row.returnId },
+    {
+      key: "ref",
+      label: "Ref #",
+      render: (row) => (
+        <span className="font-mono text-xs text-brand-700" title={row.returnId}>
+          {formatRef(row.returnId)}
+        </span>
+      ),
+    },
     { key: "invoice", label: "Invoice #", render: (row) => row.invoiceNumber },
-    { key: "product", label: "Product", render: (row) => row.productName },
+    {
+      key: "product",
+      label: "Product",
+      render: (row) => {
+        const exchangedForName = row.exchangedForProduct?.productName ?? row.exchangedFor;
+        return (
+          <div>
+            <p className="text-brand-900 font-medium">{row.productName}</p>
+            {exchangedForName && (
+              <p className="text-xs text-brand-400">→ {exchangedForName}</p>
+            )}
+          </div>
+        );
+      },
+    },
     { key: "qty", label: "Qty", align: "center", render: (row) => row.quantity },
     {
       key: "settlement",
-      label: "Refund",
+      label: "Amount",
       align: "right",
-      render: (row) => (row.refundAmount ? `₹${row.refundAmount}` : "-"),
+      // refundAmount from the API is always 0 (backend bug) — priceDifference
+      // is the field that's actually populated. It can be negative (refund
+      // to customer) or positive (customer pays), so format the sign/label
+      // instead of printing the raw signed number.
+      render: (row) => {
+        const diff = row.priceDifference;
+        if (diff === undefined || diff === null || diff === 0) return "-";
+        const isRefund = diff < 0 || row.exchangeAction === "Refund Customer";
+        return (
+          <span className={isRefund ? "text-green-700 font-medium" : "text-red-700 font-medium"}>
+            {isRefund ? "Refund " : "Pays "}₹{Math.abs(diff).toFixed(2)}
+          </span>
+        );
+      },
     },
     {
       key: "status",
       label: "Status",
       render: (row) => (
-        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-100">
+        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-100 whitespace-nowrap">
           {row.status}
         </span>
       ),
@@ -223,6 +361,7 @@ export default function ExchangePage() {
       align: "right",
       render: (row) => (
         <button
+          type="button"
           onClick={() => navigate(`/invoices/${row.invoiceNumber}`)}
           className="text-brand-600 text-xs font-semibold hover:underline"
         >
@@ -231,6 +370,10 @@ export default function ExchangePage() {
       ),
     },
   ];
+
+  const hasActiveFilters = Boolean(
+    selectedNames.length > 0 || selectedInvoices.length > 0 || selectedStatuses.length > 0 || dateRange.start
+  );
 
   return (
     <div className="w-full min-h-screen bg-brand-50 p-6">
@@ -241,7 +384,6 @@ export default function ExchangePage() {
 
       <div className="grid grid-cols-3 gap-5">
         <div className="col-span-2 flex flex-col gap-4">
-          {/* Step 1: find invoice */}
           <Card title="Find invoice">
             <div className="flex gap-2">
               <input
@@ -250,9 +392,13 @@ export default function ExchangePage() {
                 onChange={(e) => setInvoiceNumber(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleFindInvoice()}
                 placeholder="INV-20260807-0001"
-                className="flex-1 border border-brand-100 rounded-lg px-4 py-2.5 text-sm text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                className="flex-1 min-w-0 border border-brand-100 rounded-lg px-4 py-2.5 text-sm text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
               />
-              <Button onClick={handleFindInvoice} isLoading={isLoading}>
+              <Button
+                onClick={handleFindInvoice}
+                isLoading={isLoading}
+                className="!w-auto shrink-0 px-5 whitespace-nowrap"
+              >
                 <Search size={14} className="mr-1" />
                 Find
               </Button>
@@ -272,7 +418,6 @@ export default function ExchangePage() {
             )}
           </Card>
 
-          {/* Step 2: pick the old product's replacement */}
           {selectedOldProduct && (
             <Card title="Pick replacement product">
               <div className="mb-3 flex items-center gap-2 text-sm text-brand-600">
@@ -292,9 +437,13 @@ export default function ExchangePage() {
                   onChange={(e) => setProductQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSearchProducts()}
                   placeholder="Search product name or barcode..."
-                  className="flex-1 border border-brand-100 rounded-lg px-4 py-2.5 text-sm text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  className="flex-1 min-w-0 border border-brand-100 rounded-lg px-4 py-2.5 text-sm text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
                 />
-                <Button onClick={handleSearchProducts} isLoading={isLoading}>
+                <Button
+                  onClick={handleSearchProducts}
+                  isLoading={isLoading}
+                  className="!w-auto shrink-0 px-5 whitespace-nowrap"
+                >
                   <PackageSearch size={14} className="mr-1" />
                   Search
                 </Button>
@@ -319,7 +468,6 @@ export default function ExchangePage() {
           )}
         </div>
 
-        {/* Confirm panel */}
         <Card className="h-fit sticky top-6" title="Confirm exchange">
           {!selectedOldProduct || !selectedNewProduct ? (
             <p className="text-sm text-brand-400">
@@ -336,7 +484,6 @@ export default function ExchangePage() {
                 className="w-full border border-brand-100 rounded-lg px-3 py-2.5 text-sm text-brand-900 mb-4 focus:outline-none focus:ring-2 focus:ring-brand-400"
               />
 
-              {/* Price difference / sub amount display */}
               <div
                 className={`mb-4 rounded-lg px-3 py-2.5 text-sm font-medium border ${
                   priceDifference > 0
@@ -387,43 +534,122 @@ export default function ExchangePage() {
 
       {/* Exchange history */}
       <Card className="mt-6" title="Exchange history">
-        <div className="flex items-center justify-end mb-3">
-          <select
-            value={statusFilter}
-            onChange={(e) => changeStatusFilter(e.target.value)}
-            className="border border-brand-100 rounded-lg px-3 py-1.5 text-sm text-brand-900"
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex-1 relative">
+            <Search className="w-4 h-4 text-brand-400 absolute left-4 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={historySearch}
+              onChange={(e) => setHistorySearch(e.target.value)}
+              placeholder="Search by product, invoice, or approver..."
+              className="w-full bg-white border border-brand-100 rounded-lg pl-11 pr-4 py-2.5 text-sm text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
+            />
+          </div>
+          <button
+            onClick={() => setShowHistoryFilters((prev) => !prev)}
+            className="bg-white border border-brand-100 rounded-lg px-4 py-2.5 text-sm font-medium text-brand-900 flex items-center gap-2 hover:bg-brand-50"
           >
-            <option value="">All statuses</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="completed">Completed</option>
-            <option value="rejected">Rejected</option>
-          </select>
+            <FilterIcon className="w-4 h-4" /> Filters
+          </button>
+          <button
+            onClick={() => changePage(1)}
+            className="bg-brand-600 hover:bg-brand-700 text-white rounded-lg px-5 py-2.5 text-sm font-semibold flex items-center gap-2"
+          >
+            <Search className="w-4 h-4" /> Search
+          </button>
         </div>
 
-        <Table columns={historyColumns} data={history} emptyMessage="No exchanges yet" />
+        {showHistoryFilters && (
+          <div className="bg-white border border-brand-100 rounded-lg p-5 mb-3">
+            <div className="flex flex-wrap gap-6">
+              <div className="flex-shrink-0" style={{ width: "220px" }}>
+                <label className="block text-sm font-medium text-brand-900 mb-2">Product Name</label>
+                <MultiSelect
+                  label=""
+                  options={nameOptions}
+                  values={selectedNames}
+                  onChange={setSelectedNames}
+                  placeholder="Select products"
+                />
+              </div>
 
-        {pagination.totalPages > 1 && (
-          <div className="mt-4 flex justify-end gap-2">
-            <button
-              disabled={pagination.page <= 1}
-              onClick={() => changePage(pagination.page - 1)}
-              className="px-3 py-1.5 text-sm border border-brand-100 rounded-lg disabled:opacity-40"
-            >
-              Prev
-            </button>
-            <span className="text-sm text-brand-400 self-center">
-              Page {pagination.page} of {pagination.totalPages}
-            </span>
-            <button
-              disabled={pagination.page >= pagination.totalPages}
-              onClick={() => changePage(pagination.page + 1)}
-              className="px-3 py-1.5 text-sm border border-brand-100 rounded-lg disabled:opacity-40"
-            >
-              Next
-            </button>
+              <div className="flex-shrink-0" style={{ width: "220px" }}>
+                <label className="block text-sm font-medium text-brand-900 mb-2">Invoice Number</label>
+                <MultiSelect
+                  label=""
+                  options={invoiceOptions}
+                  values={selectedInvoices}
+                  onChange={setSelectedInvoices}
+                  placeholder="Select invoices"
+                />
+              </div>
+
+              <div className="flex-shrink-0" style={{ width: "220px" }}>
+                <label className="block text-sm font-medium text-brand-900 mb-2">Status</label>
+                <MultiSelect
+                  label=""
+                  options={statusOptions}
+                  values={selectedStatuses}
+                  onChange={handleStatusChange}
+                  placeholder="Select statuses"
+                />
+              </div>
+
+              <div className="flex-shrink-0" style={{ width: "220px" }}>
+                <label className="block text-sm font-medium text-brand-900 mb-2">Date Range</label>
+                <DateRangePicker
+                  startDate={dateRange.start}
+                  endDate={dateRange.end}
+                  onChange={setDateRange}
+                />
+              </div>
+            </div>
+
+            {hasActiveFilters && (
+              <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-brand-100">
+                {selectedNames.map((n) => (
+                  <Chip
+                    key={`name-${n}`}
+                    label={n}
+                    onRemove={() => setSelectedNames((prev) => prev.filter((v) => v !== n))}
+                  />
+                ))}
+                {selectedInvoices.map((inv) => (
+                  <Chip
+                    key={`inv-${inv}`}
+                    label={inv}
+                    onRemove={() => setSelectedInvoices((prev) => prev.filter((v) => v !== inv))}
+                  />
+                ))}
+                {selectedStatuses.map((s) => (
+                  <Chip
+                    key={`status-${s}`}
+                    label={s}
+                    onRemove={() => handleStatusChange(selectedStatuses.filter((v) => v !== s))}
+                  />
+                ))}
+                {dateRange.start && (
+                  <Chip
+                    label={`${dateRange.start.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}${dateRange.end ? ` – ${dateRange.end.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}` : ""}`}
+                    onRemove={() => setDateRange({ start: null, end: null })}
+                  />
+                )}
+              </div>
+            )}
           </div>
         )}
+
+        <p className="text-xs text-brand-400 mb-2">
+          {filteredHistory.length} record{filteredHistory.length === 1 ? "" : "s"}
+        </p>
+
+        <Table columns={historyColumns} data={filteredHistory} emptyMessage="No exchanges yet" />
+
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          onPageChange={changePage}
+        />
       </Card>
     </div>
   );

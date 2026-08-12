@@ -9,6 +9,9 @@ import { useUsers } from "../../hook/useUser";
 import StaffForm from "./staffForm";
 import { Pencil, Trash2, KeyRound } from "lucide-react";
 import Pagination from "../../components/pagination";
+import FieldError from "../../components/shared/FieldError";
+import PasswordHints from "../../components/shared/passwordHints";
+import { strongPassword } from "../../utilis/validator";
 
 function getUserId(user) {
   return user?.id ?? user?.userId ?? user?._id;
@@ -18,7 +21,7 @@ export default function StaffList() {
   const { staff, isLoading, fetchUsers, addUser, updateUser, deleteUser, resetPassword } = useUsers();
   const { showToast } = useToast();
   const PAGE_SIZE = 10;
-const [page, setPage] = useState(1);
+  const [page, setPage] = useState(1);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
@@ -27,6 +30,7 @@ const [page, setPage] = useState(1);
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [newPassword, setNewPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
@@ -39,7 +43,14 @@ const [page, setPage] = useState(1);
   const openResetModal = (user) => {
     setSelectedUser(user);
     setNewPassword("");
+    setPasswordError("");
     setIsResetOpen(true);
+  };
+
+  const handlePasswordChange = (e) => {
+    const value = e.target.value;
+    setNewPassword(value);
+    setPasswordError(strongPassword()(value));
   };
 
   const handleFormSubmit = async (formData) => {
@@ -82,13 +93,12 @@ const [page, setPage] = useState(1);
   };
 
   const handleResetPassword = async () => {
-    console.log("Selected user:", selectedUser); // TEMP
-    console.log("Username being sent:", selectedUser?.username); // TEMP
-
-    if (!newPassword || newPassword.length < 8) {
-      showToast("Password must be at least 8 characters", "error");
+    const error = strongPassword()(newPassword);
+    if (error) {
+      setPasswordError(error);
       return;
     }
+
     setIsResetting(true);
     try {
       await resetPassword({ username: selectedUser.username, password: newPassword });
@@ -102,14 +112,14 @@ const [page, setPage] = useState(1);
 
   const columns = [
     {
-  key: "serial",
-  label: "S.No",
-  render: (_, index) => (
-    <span className="text-brand-900">
-      {(page - 1) * PAGE_SIZE + index + 1}
-    </span>
-  ),
-},
+      key: "serial",
+      label: "S.No",
+      render: (_, index) => (
+        <span className="text-brand-900">
+          {(page - 1) * PAGE_SIZE + index + 1}
+        </span>
+      ),
+    },
     { key: "username", label: "Username", render: (row) => <span className="text-brand-900 font-medium">{row.username}</span> },
     { key: "email", label: "Email", render: (row) => <span className="text-brand-900">{row.email}</span> },
     { key: "phoneNumber", label: "Phone", render: (row) => <span className="text-brand-900">{row.phoneNumber}</span> },
@@ -138,40 +148,40 @@ const [page, setPage] = useState(1);
       label: "Actions",
       align: "center",
       render: (row) => (
-  <div className="flex justify-center items-center gap-3">
-  <button
-    onClick={() => openEditForm(row)}
-    className="p-2 rounded-lg text-brand-600 hover:bg-brand-100 transition-colors"
-    title="Edit"
-  >
-    <Pencil className="w-4 h-4" />
-  </button>
+        <div className="flex justify-center items-center gap-3">
+          <button
+            onClick={() => openEditForm(row)}
+            className="p-2 rounded-lg text-brand-600 hover:bg-brand-100 transition-colors"
+            title="Edit"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
 
-  <button
-    onClick={() => openResetModal(row)}
-    className="p-2 rounded-lg text-yellow-600 hover:bg-yellow-100 transition-colors"
-    title="Reset Password"
-  >
-    <KeyRound className="w-4 h-4" />
-  </button>
+          <button
+            onClick={() => openResetModal(row)}
+            className="p-2 rounded-lg text-yellow-600 hover:bg-yellow-100 transition-colors"
+            title="Reset Password"
+          >
+            <KeyRound className="w-4 h-4" />
+          </button>
 
-  <button
-    onClick={() => setDeletingStaff(row)}
-    className="p-2 rounded-lg text-red-500 hover:bg-red-100 transition-colors"
-    title="Delete"
-  >
-    <Trash2 className="w-4 h-4" />
-  </button>
-</div>
+          <button
+            onClick={() => setDeletingStaff(row)}
+            className="p-2 rounded-lg text-red-500 hover:bg-red-100 transition-colors"
+            title="Delete"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       ),
     },
   ];
-const totalPages = Math.max(1, Math.ceil(staff.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(staff.length / PAGE_SIZE));
 
-const paginatedStaff = staff.slice(
-  (page - 1) * PAGE_SIZE,
-  page * PAGE_SIZE
-);
+  const paginatedStaff = staff.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE
+  );
   return (
     <div className="w-full min-h-screen bg-brand-50">
       <div className="bg-white border-b border-brand-100 px-8 py-5 flex items-center justify-between">
@@ -194,21 +204,21 @@ const paginatedStaff = staff.slice(
 
       <div className="p-6">
         <Card>
-         <Table
-  columns={columns}
-  data={paginatedStaff}
-  isLoading={isLoading}
-  emptyMessage="No staff members yet"
-/>
-{!isLoading && staff.length > 0 && (
-  <div className="flex justify-end mt-3">
-    <Pagination
-      page={page}
-      totalPages={totalPages}
-      onPageChange={setPage}
-    />
-  </div>
-)}
+          <Table
+            columns={columns}
+            data={paginatedStaff}
+            isLoading={isLoading}
+            emptyMessage="No staff members yet"
+          />
+          {!isLoading && staff.length > 0 && (
+            <div className="flex justify-end mt-3">
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+              />
+            </div>
+          )}
         </Card>
       </div>
 
@@ -222,13 +232,17 @@ const paginatedStaff = staff.slice(
             Username: <span className="text-brand-900 font-medium">{selectedUser?.username}</span>
           </p>
 
-          <input
-            type="password"
-            placeholder="New password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full border border-brand-100 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
-          />
+          <div>
+            <input
+              type="password"
+              placeholder="New password"
+              value={newPassword}
+              onChange={handlePasswordChange}
+              className="w-full border border-brand-100 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+            />
+            <PasswordHints value={newPassword} />
+            <FieldError message={passwordError} />
+          </div>
 
           <div className="flex justify-end gap-2">
             <button onClick={() => setIsResetOpen(false)} className="px-4 py-2 border border-brand-100 rounded-lg text-sm text-brand-900">

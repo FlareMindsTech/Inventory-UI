@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from "react";
-import { Store, RefreshCw, SearchCheck } from "lucide-react";
+import { useEffect, useState, useRef, useMemo } from "react";
+import { Store, RefreshCw, SearchCheck, Search, Filter as FilterIcon } from "lucide-react";
 import { useRetail } from "../../hook/useRetail";
 import { useProducts } from "../../hook/useproduct";
 import { useFactoryInventory } from "../../hook/useFactoryInventory";
@@ -7,16 +7,26 @@ import { useToast } from "../../context/ToastContext";
 import Card from "../../components/card";
 import Table from "../../components/Table";
 import Pagination from "../../components/pagination";
+import MultiSelect from "../../components/MultiSelect";
+import Chip from "../../components/Chip";
+
+const stockStatusOptions = ["In Stock", "Medium Stock", "Low Stock", "Out of Stock"];
 
 export default function RetailInventory() {
   const { retailProducts, isLoading, fetchRetailInventory, adjustStock } = useRetail();
   const { fetchProducts } = useProducts();
   const { fetchFactoryInventory } = useFactoryInventory();
   const { showToast } = useToast();
-const PAGE_SIZE = 10;
-const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
   const [updatingId, setUpdatingId] = useState(null);
   const alertedRef = useRef(new Set());
+
+  // ----- Filters: search by product name/barcode + a Filters panel for
+  // Stock Status, same layout pattern as ProductList/ExchangePage. -----
+  const [search, setSearch] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedStockStatuses, setSelectedStockStatuses] = useState([]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -25,8 +35,6 @@ const [page, setPage] = useState(1);
         await fetchProducts();
         await fetchFactoryInventory();
       } catch (err) {
-       
-
 
       }
     };
@@ -72,17 +80,8 @@ const [page, setPage] = useState(1);
   };
 
   const handleAddOne = async (row) => {
-   console.log("Clicked Row:", row);
-  console.log("Product:", row.product);
-
-
-  console.log("Product ID:", productId);
-
-const productId =
-  row.product?.id ||
-  row.product?.productId ||
-  row.product?._id;
-
+    const productId = row.product?.id || row.product?.productId || row.product?._id;
+    
 
     if (!productId || updatingId) return;
     setUpdatingId(productId);
@@ -99,7 +98,7 @@ const productId =
 
   const handleSubtractOne = async (row) => {
     const currentStock = row.quantity || 0;
-    const productId = row.product?.id;
+    const productId = row.product?.id || row.product?.productId || row.product?._id;
     if (!productId || updatingId) return;
     if (currentStock <= 0) {
       showToast("Stock cannot go below 0", "error");
@@ -137,15 +136,35 @@ const productId =
     retailProducts?.filter((p) => (p.quantity || 0) < (p.minimumStock || 5) && (p.quantity || 0) > 0).length || 0;
   const outOfStockCount = retailProducts?.filter((p) => (p.quantity || 0) === 0).length || 0;
 
-  const totalPages = Math.max(
-  1,
-  Math.ceil((retailProducts?.length || 0) / PAGE_SIZE)
-);
 
-const paginatedRetailProducts = (retailProducts || []).slice(
-  (page - 1) * PAGE_SIZE,
-  page * PAGE_SIZE
-);
+  const filteredRetailProducts = useMemo(() => {
+    let rows = retailProducts || [];
+
+    const q = search.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter(
+        (row) =>
+          row.product?.productName?.toLowerCase().includes(q) ||
+          row.product?.barcode?.toLowerCase().includes(q)
+      );
+    }
+
+    if (selectedStockStatuses.length > 0) {
+      rows = rows.filter((row) => selectedStockStatuses.includes(getStockStatus(row.quantity || 0)));
+    }
+
+    return rows;
+  }, [retailProducts, search, selectedStockStatuses]);
+
+  const hasActiveFilters = Boolean(search || selectedStockStatuses.length > 0);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRetailProducts.length / PAGE_SIZE));
+
+  const paginatedRetailProducts = filteredRetailProducts.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE
+  );
+
   const columns = [
     {
       key: "product",
@@ -199,7 +218,8 @@ const paginatedRetailProducts = (retailProducts || []).slice(
       align: "center",
       render: (row) => {
         const stock = row.quantity || 0;
-        const isUpdating = updatingId === row.product?.id;
+        const productId = row.product?.id || row.product?.productId || row.product?._id;
+        const isUpdating = updatingId === productId;
         return (
           <div className="flex justify-center items-center gap-2">
             <button
@@ -280,20 +300,68 @@ const paginatedRetailProducts = (retailProducts || []).slice(
         </div>
       )}
 
+      <div className="flex items-center gap-3 mb-3">
+        <div className="flex-1 relative">
+          <Search className="w-4 h-4 text-brand-400 absolute left-4 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            placeholder="Search by product name or barcode..."
+            className="w-full bg-white border border-brand-100 rounded-lg pl-11 pr-4 py-2.5 text-sm text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
+          />
+        </div>
+        <button
+          onClick={() => setShowFilters((prev) => !prev)}
+          className="bg-white border border-brand-100 rounded-lg px-4 py-2.5 text-sm font-medium text-brand-900 flex items-center gap-2 hover:bg-brand-50"
+        >
+          <FilterIcon className="w-4 h-4" /> Filters
+        </button>
+      </div>
+
+      {showFilters && (
+        <div className="bg-white border border-brand-100 rounded-lg p-5 mb-3">
+          <div className="flex flex-wrap gap-6">
+            <div className="flex-shrink-0" style={{ width: "220px" }}>
+              <label className="block text-sm font-medium text-brand-900 mb-2">Stock Status</label>
+              <MultiSelect
+                label=""
+                options={stockStatusOptions}
+                values={selectedStockStatuses}
+                onChange={(vals) => { setSelectedStockStatuses(vals); setPage(1); }}
+                placeholder="Select stock status"
+              />
+            </div>
+          </div>
+
+          {hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-brand-100">
+              {search && <Chip label={`Search: ${search}`} onRemove={() => setSearch("")} />}
+              {selectedStockStatuses.map((s) => (
+                <Chip
+                  key={s}
+                  label={s}
+                  onRemove={() => setSelectedStockStatuses((prev) => prev.filter((v) => v !== s))}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <Card borderColor="border-brand-400">
-        <Table columns={columns}  columns={columns}
-  data={paginatedRetailProducts}
-  isLoading={isLoading}
-  emptyMessage="No retail stock available" borderColor="border-brand-400" />
-  {!isLoading && retailProducts?.length > 0 && (
-  <div className="flex justify-end mt-4">
-    <Pagination
-      page={page}
-      totalPages={totalPages}
-      onPageChange={setPage}
-    />
-  </div>
-)}
+        <Table
+          columns={columns}
+          data={paginatedRetailProducts}
+          isLoading={isLoading}
+          emptyMessage="No retail stock available"
+          borderColor="border-brand-400"
+        />
+        {!isLoading && filteredRetailProducts.length > 0 && (
+          <div className="flex justify-end mt-4">
+            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+          </div>
+        )}
       </Card>
     </div>
   );

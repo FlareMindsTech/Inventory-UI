@@ -17,7 +17,7 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const user = await login({ userName, password }); // throws if rejected, thanks to .unwrap()
+      const user = await login({ userName, password }); 
 
       await Swal.fire({
         icon: "success",
@@ -28,7 +28,7 @@ export default function LoginPage() {
         timerProgressBar: true,
         showConfirmButton: false,
       });
-      console.log(user);
+     
 
       navigate("/dashboard");
     } catch (err) {

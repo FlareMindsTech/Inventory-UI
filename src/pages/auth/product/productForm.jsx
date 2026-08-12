@@ -25,7 +25,6 @@ export default function ProductForm({ initialData, categories, brands, onSubmit,
       mrp: "",
       gst: "",
       discount: 0,
-      costPrice: "",
       quantity: "",
     }
   );
@@ -35,7 +34,6 @@ export default function ProductForm({ initialData, categories, brands, onSubmit,
   const fieldValidators = {
     productName: [required("Product name is required"), minLengthText(2, "Name is too short")],
     mrp: [required("MRP is required"), positiveNumber("MRP must be a positive number")],
-    costPrice: [nonNegativeNumber("Cost price cannot be negative")],
     discount: [nonNegativeNumber("Discount cannot be negative"), maxNumber(100, "Discount cannot exceed 100%")],
     ...(!initialData && {
       quantity: [required("Initial stock quantity is required"), positiveInteger()],
@@ -82,7 +80,6 @@ export default function ProductForm({ initialData, categories, brands, onSubmit,
       mrp: Number(form.mrp),
       gst: Number(form.gst) || 0,
       discount: Number(form.discount) || 0,
-      costPrice: Number(form.costPrice) || 0,
       ...(!initialData && { quantity: Number(form.quantity) }),
     };
 
@@ -135,23 +132,17 @@ export default function ProductForm({ initialData, categories, brands, onSubmit,
           <FieldError message={errors.mrp} />
         </div>
         <div>
-          <Input label="Cost price (₹)" type="number" value={form.costPrice} onChange={handleChange("costPrice")} placeholder="0" />
-          <FieldError message={errors.costPrice} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 mb-5">
-        <div>
           <label className="text-sm font-medium text-brand-900 block mb-1.5">GST (%)</label>
           <select value={form.gst} onChange={handleChange("gst")} className="w-full border border-brand-100 rounded-lg px-3 py-2.5 text-sm text-brand-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-400">
             <option value="">Select GST</option>
             {gstOptions.map((g) => <option key={g} value={g}>{g}%</option>)}
           </select>
         </div>
-        <div>
-          <Input label="Discount (%)" type="number" value={form.discount} onChange={handleChange("discount")} placeholder="0" />
-          <FieldError message={errors.discount} />
-        </div>
+      </div>
+
+      <div className="mb-5">
+        <Input label="Discount (%)" type="number" value={form.discount} onChange={handleChange("discount")} placeholder="0" />
+        <FieldError message={errors.discount} />
       </div>
 
       {!initialData && (

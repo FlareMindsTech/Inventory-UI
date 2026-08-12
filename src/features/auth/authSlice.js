@@ -18,11 +18,11 @@ export const loginThunk = createAsyncThunk(
   async ({ userName, password }, { dispatch, rejectWithValue }) => {
     try {
       const response = await loginUser({ userName, password });
-      console.log("LOGIN RESPONSE:", response); // fixed typo, this will now actually log
+    
       const token = extractToken(response);
 
       if (!token) {
-        console.log("No token found in response — check the shape above");
+        
         return rejectWithValue("Login succeeded but no token was returned.");
       }
 
@@ -33,7 +33,7 @@ export const loginThunk = createAsyncThunk(
   user: response.Result?.user || response.result?.user || null,
 };
     } catch (err) {
-      console.log("LOGIN ERROR:", err.response?.data || err.message); // helps see real backend errors
+     
       return rejectWithValue(
         err.response?.data?.message || "Invalid username or password"
       );
@@ -46,10 +46,10 @@ export const fetchProfileThunk = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const data = await getProfile();
-      console.log("PROFILE RESPONSE:", data); // TEMP
+   
       return data.data || data.result || data.Result || data;
     } catch (err) {
-      console.log("PROFILE FETCH ERROR:", err.response?.data || err.message); // TEMP
+      
       return rejectWithValue(err.response?.data?.message || "Failed to load profile");
     }
   }
@@ -59,7 +59,7 @@ export const logoutThunk = createAsyncThunk("auth/logout", async () => {
   try {
     await logoutUser();
   } catch {
-    // proceed with local logout even if the server call fails
+    
   }
 });
 
