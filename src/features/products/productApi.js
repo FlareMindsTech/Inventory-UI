@@ -2,7 +2,6 @@ import axiosInstance from "../../app/axiosInstance";
 
 export const getAllProducts = async (page = 1, limit = 10) => {
   const res = await axiosInstance.get("/api/products", { params: { page, limit } });
-   console.log("product datassss",res.data);
   return res.data;
  
 

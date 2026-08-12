@@ -2,7 +2,7 @@ import axiosInstance from "../../app/axiosInstance";
 
 export const getAllUsers = async () => {
   const res = await axiosInstance.get("/api/users");
-  console.log(res);
+
   return res.data;
 };
 
@@ -12,7 +12,7 @@ export const getUserById = async (id) => {
 };
 
 export const createUser = async (userData) => {
-  const res = await axiosInstance.post("/api/users", userData); // fixed: was /api/auth/register
+  const res = await axiosInstance.post("/api/users", userData); 
   return res.data;
 };
 
@@ -27,8 +27,8 @@ export const deleteUser = async (id) => {
 };
 
 
-export const changePassword = async ({ username, password }) => {
 
-  const res = await axiosInstance.put("/api/users/change-password", requestBody);
+export const changePassword = async ({ username, password }) => {
+  const res = await axiosInstance.put("/api/users/change-password", { username, password });
   return res.data;
 };

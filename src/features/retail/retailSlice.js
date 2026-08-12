@@ -1,4 +1,4 @@
-// features/retail/retailSlice.js
+
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   getRetailInventorySummary,
@@ -16,44 +16,41 @@ function extractData(response) {
 
     return [];
   }
-  
-  // If response has Result property (your API returns this)
+
   if (response.Result && Array.isArray(response.Result)) {
    
     return response.Result;
   }
   
-  // If response has result property
+
   if (response.result && Array.isArray(response.result)) {
  
     return response.result;
   }
   
-  // If response has data property
+
   if (response.data && Array.isArray(response.data)) {
 
     return response.data;
   }
   
-  // If response is directly an array
   if (Array.isArray(response)) {
   
     return response;
   }
   
-  // If response has items property
+ 
   if (response.items && Array.isArray(response.items)) {
  
     return response.items;
   }
   
-  // If response has inventory property
+ 
   if (response.inventory && Array.isArray(response.inventory)) {
   
     return response.inventory;
   }
-  
-  // If it's a single object
+ 
   if (response.id || response.productId || response.inventoryId) {
    
     return [response];
@@ -63,7 +60,7 @@ function extractData(response) {
   return [];
 }
 
-// Fetch Retail Inventory Summary
+
 export const fetchRetailInventoryThunk = createAsyncThunk(
   "retail/fetchInventory",
   async (_, { rejectWithValue }) => {
@@ -83,7 +80,6 @@ export const fetchRetailInventoryThunk = createAsyncThunk(
   }
 );
 
-// Fetch Retail Inventory History
 export const fetchRetailHistoryThunk = createAsyncThunk(
   "retail/fetchHistory",
   async (_, { rejectWithValue }) => {
@@ -97,7 +93,7 @@ export const fetchRetailHistoryThunk = createAsyncThunk(
   }
 );
 
-// Fetch Low Stock Products
+
 export const fetchLowStockThunk = createAsyncThunk(
   "retail/fetchLowStock",
   async (_, { rejectWithValue }) => {
@@ -111,7 +107,6 @@ export const fetchLowStockThunk = createAsyncThunk(
   }
 );
 
-// Receive Stock in Retail
 export const receiveRetailStockThunk = createAsyncThunk(
   "retail/receiveStock",
   async ({ transferId }, { rejectWithValue }) => {
@@ -124,7 +119,7 @@ export const receiveRetailStockThunk = createAsyncThunk(
   }
 );
 
-// Adjust Retail Stock
+
 export const adjustRetailStockThunk = createAsyncThunk(
   "retail/adjustStock",
   async ({ productId, actualQuantity, reason }, { rejectWithValue }) => {
@@ -137,7 +132,7 @@ export const adjustRetailStockThunk = createAsyncThunk(
   }
 );
 
-// Update Retail Stock Config
+
 export const updateRetailStockThunk = createAsyncThunk(
   "retail/updateStock",
   async ({ id, data }, { rejectWithValue }) => {

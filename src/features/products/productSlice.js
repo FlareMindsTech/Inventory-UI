@@ -17,7 +17,7 @@ export const fetchProductsThunk = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await getAllProducts();
-      console.log(response);
+    
       const result = extractData(response);
       const products = Array.isArray(result) ? result : (result.products || result.data || []);
       return products;
@@ -56,8 +56,7 @@ export const addProductThunk = createAsyncThunk(
   async (productData, { rejectWithValue }) => {
     try {
       const response = await addProductAPI(productData);
-      // This endpoint uses lowercase success/message/data, unlike the rest of the API,
-      // and only returns { productId, barcode } — not the full product object
+   
       const result = response.data || response.Result || response;
       return result;
     } catch (err) {
@@ -120,9 +119,6 @@ const productSlice = createSlice({
       .addCase(fetchBrandsThunk.fulfilled, (state, action) => {
         state.brands = Array.isArray(action.payload) ? action.payload : [];
       })
-      // addProductThunk deliberately does NOT push into state.list here —
-      // the response only has { productId, barcode }, not a full product row.
-      // ProductList.jsx calls fetchProducts() right after, which refetches the real data.
       .addCase(updateProductThunk.fulfilled, (state, action) => {
         const idx = state.list.findIndex((p) => p.productId === action.payload.id);
         if (idx !== -1) {

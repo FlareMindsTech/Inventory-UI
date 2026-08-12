@@ -18,7 +18,8 @@ export const useStockTransfer = () => {
     fetchHistory: async () => {
       try {
         const result = await dispatch(fetchTransferHistoryThunk()).unwrap();
-        console.log("Fetch history result:", result);
+        
+        
         return result;
       } catch (err) {
         console.error("Fetch history error:", err);
@@ -42,7 +43,9 @@ export const useStockTransfer = () => {
     cancelTransfer: async (id) => {
       try {
         const result = await dispatch(cancelTransferThunk(id)).unwrap();
-        console.log("Cancel transfer result:", result);
+       
+        
+
         return result;
       } catch (err) {
         console.error("Cancel transfer error:", err);

@@ -55,21 +55,21 @@ export function useSales() {
 
   return {
 
-    // data
+   
     dailySales: daily,
     monthlySales: monthly,
     yearlySales: yearly,
 
 
-    // loading
+    
     isLoading: status === "loading",
 
 
-    // error
+ 
     error,
 
 
-    // actions
+  
     getDailySales,
     getMonthlySales,
     getYearlySales

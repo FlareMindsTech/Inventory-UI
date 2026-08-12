@@ -8,28 +8,26 @@ import {
 } from "./exchangeApi";
 
 const initialState = {
-  // step 1: invoice lookup
+  
   invoice: null,
   invoiceItems: [],
 
-  // step 2/3: product selection
   selectedOldProduct: null,
   productResults: [],
   selectedNewProduct: null,
 
-  // result of a completed exchange
   lastExchange: null,
 
-  // history list
+ 
   history: [],
   pagination: { page: 1, limit: 10, total: 0, totalPages: 1 },
   statusFilter: "",
 
-  status: "idle", // idle | loading | succeeded | failed
+  status: "idle", 
   error: null,
 };
 
-// ----- Thunks -----
+
 
 export const fetchInvoiceThunk = createAsyncThunk(
   "exchange/fetchInvoice",
@@ -101,7 +99,6 @@ export const settleExchangeThunk = createAsyncThunk(
   }
 );
 
-// ----- Slice -----
 
 const exchangeSlice = createSlice({
   name: "exchange",
@@ -146,7 +143,7 @@ const exchangeSlice = createSlice({
     };
 
     builder
-      // invoice lookup
+   
       .addCase(fetchInvoiceThunk.pending, (state) => {
         state.status = "loading";
         state.error = null;
@@ -164,7 +161,7 @@ const exchangeSlice = createSlice({
         state.invoiceItems = [];
       })
 
-      // product search (for the replacement/new product)
+  
       .addCase(searchProductsThunk.pending, (state) => {
         state.status = "loading";
         state.error = null;
@@ -179,7 +176,7 @@ const exchangeSlice = createSlice({
         state.productResults = [];
       })
 
-      // create exchange
+   
       .addCase(createExchangeThunk.pending, (state) => {
         state.status = "loading";
         state.error = null;
@@ -196,7 +193,7 @@ const exchangeSlice = createSlice({
         state.error = action.payload || action.error.message;
       })
 
-      // history
+    
       .addCase(fetchExchangeHistoryThunk.pending, (state) => {
         state.status = "loading";
         state.error = null;
@@ -218,7 +215,7 @@ const exchangeSlice = createSlice({
         state.error = action.payload || action.error.message;
       })
 
-      // settle
+
       .addCase(settleExchangeThunk.pending, (state) => {
         state.status = "loading";
         state.error = null;

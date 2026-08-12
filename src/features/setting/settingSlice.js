@@ -16,7 +16,6 @@ export const fetchSettingsThunk = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const result = extractData(await getSettings());
-      console.log("SETTINGS RESPONSE:", result); // TEMP - confirm shape on first load
       return result;
     } catch (err) {
       return rejectWithValue(err.response?.data?.Message || "Failed to load settings");

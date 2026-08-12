@@ -87,14 +87,13 @@ export const processPaymentThunk = createAsyncThunk(
   }
 );
 
-// ----- Waiting queue thunks -----
+
 
 export const startNewBillThunk = createAsyncThunk(
   "billing/startNewBill",
   async (customerId, { rejectWithValue }) => {
     try {
       const data = extractData(await startNewBill(customerId));
-      // response is nested: { bill: {...} } — unwrap to the actual bill object
       return data?.bill ?? data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.Message || "Failed to start new bill");
@@ -107,15 +106,11 @@ export const fetchOpenBillsThunk = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const data = extractData(await getOpenBills());
-      // normalize whatever shape the backend actually returns (array directly, or nested)
       let list = [];
       if (Array.isArray(data)) list = data;
       else if (Array.isArray(data?.bills)) list = data.bills;
       else if (Array.isArray(data?.data)) list = data.data;
 
-      // each entry is shaped { bill: {...}, items: [...] } — flatten so the bill's
-      // own fields (_id, customerId, subtotal, etc.) sit at the top level, same as
-      // startNewBill's response, so the rest of the app can treat them identically.
       return list.map((entry) =>
         entry?.bill ? { ...entry.bill, items: entry.items ?? [] } : entry
       );
@@ -141,14 +136,14 @@ const billingSlice = createSlice({
   name: "billing",
   initialState: {
     scannedProduct: null,
-    currentBill: null, // the running bill object for whichever customer is currently active
+    currentBill: null, 
     cartItems: [],
     generatedBill: null,
     paymentResult: null,
     customerId: null,
 
-    activeBillId: null, // which bill in the queue is currently showing on screen
-    openBills: [], // the waiting queue — every unpaid bill for this cashier
+    activeBillId: null,
+    openBills: [], 
 
     status: "idle",
     error: null,
@@ -169,7 +164,7 @@ const billingSlice = createSlice({
       state.customerId = null;
       state.activeBillId = null;
     },
-    // switch which queued bill is shown, without touching the others
+    
     switchActiveBill: (state, action) => {
       const billId = action.payload;
       const bill = state.openBills.find((b) => getBillId(b) === billId);
@@ -177,7 +172,7 @@ const billingSlice = createSlice({
       state.currentBill = bill ?? null;
       state.cartItems = bill?.items ?? [];
       state.customerId = bill?.customerId ?? null;
-      state.generatedBill = null; // a different customer's cart hasn't been generated yet
+      state.generatedBill = null; 
     },
   },
   extraReducers: (builder) => {
@@ -198,7 +193,7 @@ const billingSlice = createSlice({
         state.cartItems = action.payload.items || [];
         state.activeBillId = getBillId(action.payload.bill) ?? state.activeBillId;
 
-        // keep the queue list's copy of this bill's items in sync too
+
         const billId = getBillId(action.payload.bill);
         const idx = state.openBills.findIndex((b) => getBillId(b) === billId);
         if (idx !== -1) {
@@ -229,7 +224,7 @@ const billingSlice = createSlice({
         state.openBills = state.openBills.filter((b) => getBillId(b) !== paidBillId);
 
         if (state.activeBillId === paidBillId) {
-          // fall back to the next customer in the queue, if any are still waiting
+        
           const next = state.openBills[0];
           if (next) {
             state.activeBillId = getBillId(next);
@@ -246,7 +241,6 @@ const billingSlice = createSlice({
         state.generatedBill = null;
       })
 
-      // ----- queue -----
       .addCase(startNewBillThunk.fulfilled, (state, action) => {
         const bill = action.payload;
         state.openBills.push(bill);
@@ -257,7 +251,7 @@ const billingSlice = createSlice({
       })
       .addCase(fetchOpenBillsThunk.fulfilled, (state, action) => {
         state.openBills = action.payload;
-        // if nothing is active yet, default to the first bill in the queue
+
         if (!state.activeBillId && action.payload.length > 0) {
           const first = action.payload[0];
           state.activeBillId = getBillId(first);

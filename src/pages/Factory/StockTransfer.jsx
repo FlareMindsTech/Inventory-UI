@@ -19,7 +19,7 @@ export default function StockTransfer() {
   useEffect(() => {
     fetchProducts();
     fetchFactoryInventory();
-    console.log("Products:", products);
+  
   }, []);
 
 

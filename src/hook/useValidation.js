@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 
 /**
  * @param {Object} initialValues
- * @param {Object} rules - { fieldName: [validatorFn, validatorFn, ...] }
+ * @param {Object} rules 
  */
 export default function useValidation(initialValues, rules) {
   const [values, setValues] = useState(initialValues);
@@ -26,7 +26,6 @@ export default function useValidation(initialValues, rules) {
     const value = e.target.value;
     setValues((prev) => ({ ...prev, [field]: value }));
 
-    // live validation only after the field has been touched once
     if (touched[field]) {
       setErrors((prev) => ({ ...prev, [field]: validateField(field, value) }));
     }

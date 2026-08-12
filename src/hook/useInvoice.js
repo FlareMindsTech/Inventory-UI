@@ -24,7 +24,7 @@ export const useInvoice = () => {
   } = useSelector((state) => state.invoice);
 
   return {
-    // State
+   
     invoices,
     selectedInvoice,
     generatedInvoice,
@@ -32,7 +32,7 @@ export const useInvoice = () => {
     isLoading: status === "loading",
     error,
 
-    // Actions
+  
     fetchInvoices: (page = 1, limit = 10) =>
       dispatch(fetchInvoicesThunk({ page, limit })).unwrap(),
 

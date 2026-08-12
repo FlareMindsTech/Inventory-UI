@@ -21,8 +21,7 @@ const COLORS = {
   red: "#DC2626",
 };
 
-// Only endpoints confirmed to exist in reportsAPI are used here:
-// getDashboardSummary, getSalesReport, getInventoryReport, getBestSellingReport
+
 export default function OwnerDashboard() {
   const {
     dashboard, sales, inventory, bestSelling,
@@ -44,7 +43,7 @@ export default function OwnerDashboard() {
     getSalesReport(startDate, endDate);
     getBestSellingReport?.(startDate, endDate);
     setLastUpdated(new Date());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  
   }, []);
 
   useEffect(() => {
@@ -65,7 +64,6 @@ export default function OwnerDashboard() {
       }))
     : [];
 
-  // Prefer bestSelling report if available, fall back to dashboard summary's list
   const bestSellingItems = Array.isArray(bestSellingData)
     ? bestSellingData
     : Array.isArray(bestSellingData?.items)
@@ -99,7 +97,7 @@ export default function OwnerDashboard() {
 
   return (
     <div className="w-full min-h-screen bg-brand-50 p-6">
-      {/* Header */}
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <p className="text-lg font-medium text-brand-900">Store overview</p>
@@ -122,7 +120,7 @@ export default function OwnerDashboard() {
         </div>
       </div>
 
-      {/* Metric cards — from getDashboardSummary + getInventoryReport */}
+     
       <div className="grid grid-cols-4 gap-3 mb-5">
         <MetricCard
           icon={<TrendingUp size={16} />}
@@ -155,7 +153,7 @@ export default function OwnerDashboard() {
         />
       </div>
 
-      {/* Sales trend — from getSalesReport */}
+     
       <Panel title="Sales trend" subtitle="Last 7 days" className="mb-4">
         {sales.loading && <ChartSkeleton />}
         {!sales.loading && sales.error && <ErrorState note="Couldn't load sales trend" onRetry={loadAll} />}
@@ -192,7 +190,7 @@ export default function OwnerDashboard() {
         )}
       </Panel>
 
-      {/* Top products + Stock status — from getBestSellingReport / getInventoryReport */}
+    
       <div className="grid grid-cols-3 gap-4">
         <Panel className="col-span-2" title="Top selling products">
           {(bestSelling?.loading ?? dashboard.loading) && <ChartSkeleton />}

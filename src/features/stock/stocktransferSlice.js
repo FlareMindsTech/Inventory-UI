@@ -40,7 +40,7 @@ export const transferToRetailThunk = createAsyncThunk(
   }
 );
 
-// FIX: Add fromLocation and toLocation to online transfer
+
 export const transferToOnlineThunk = createAsyncThunk(
   "stockTransfer/toOnline",
   async ({ productId, quantity, fromLocation, toLocation }, { rejectWithValue }) => {

@@ -26,20 +26,21 @@ export default function TransferHistory() {
   const loadHistory = async () => {
     try {
       const data = await fetchHistory();
-      console.log("TRANSFER HISTORY DATA:", data);
-      // If data is an array, use it directly
+    
+      
       if (Array.isArray(data)) {
         setLocalHistory(data);
       } 
-      // If data has a transfers property
+   
+      
       else if (data?.transfers && Array.isArray(data.transfers)) {
         setLocalHistory(data.transfers);
       }
-      // If data has a result property
+    
       else if (data?.result && Array.isArray(data.result)) {
         setLocalHistory(data.result);
       }
-      // If data has a data property
+    
       else if (data?.data && Array.isArray(data.data)) {
         setLocalHistory(data.data);
       }

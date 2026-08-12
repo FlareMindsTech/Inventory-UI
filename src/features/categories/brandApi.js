@@ -15,6 +15,6 @@ export const updateBrand = async (id, data) => {
 };
 export const deleteBrand = async (id) => {
   const res = await axiosInstance.delete(`/api/brands/${id}`);
-  console.log(res.data);
+
   return res.data;
 };

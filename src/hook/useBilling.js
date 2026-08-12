@@ -44,8 +44,7 @@ export const useBilling = () => {
 
     scanBarcode: (barcode) => dispatch(scanBarcodeThunk(barcode)).unwrap(),
 
-    // billId is optional — omit it to keep existing single-bill behavior;
-    // pass the active queued bill's id to target a specific customer's cart.
+   
     addItemToBill: (productId, quantity, customerId, billId) =>
       dispatch(addItemToBillThunk({ billId, productId, quantity, customerId })).unwrap(),
 
@@ -63,19 +62,16 @@ export const useBilling = () => {
     clearSession: () => dispatch(clearBillingSession()),
     setCustomer: (id) => dispatch(setCustomerId(id)),
 
-    // ----- waiting queue -----
-
-    // starts a fresh, isolated bill for a new customer without touching
-    // whichever bill is currently active/open.
+  
     startNewBill: (customerId) => dispatch(startNewBillThunk(customerId)).unwrap(),
 
-    // loads every unpaid bill for the cashier — call on page mount to restore the queue.
+    
     loadOpenBills: () => dispatch(fetchOpenBillsThunk()).unwrap(),
 
-    // discards an unpaid bill entirely (e.g. customer walked away).
+    
     discardBill: (billId) => dispatch(deleteOpenBillThunk(billId)).unwrap(),
 
-    // switches which queued customer's cart is shown on screen.
+  
     switchBill: (billId) => dispatch(switchActiveBill(billId)),
   };
 };

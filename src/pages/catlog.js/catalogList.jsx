@@ -52,18 +52,9 @@ export default function CatalogList({ title, nameLabel, nameField, fetchAll, cre
     }
   };
 
-  // const handleDelete = async () => {
-  //   try {
-  //     await remove(getId(deleting));
-  //     showToast(`${title.slice(0, -1)} removed`, "success");
-  //     load();
-  //   } catch (err) {
-  //     showToast(err?.response?.data?.Message || "Failed to remove", "error");
-  //   }
-  //   setDeleting(null);
-  // };
+
 const handleDelete = async () => {
-  console.log("Deleting:", deleting); // TEMP - check which field actually has the ID
+ 
   try {
     await remove(getId(deleting));
     showToast(`${title.slice(0, -1)} removed`, "success");

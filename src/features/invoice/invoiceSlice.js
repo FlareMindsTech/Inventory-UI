@@ -10,9 +10,7 @@ import {
 const extractData = (response) =>
   response?.Result || response?.data || response?.result || response;
 
-// =======================
-// Get All Invoices
-// =======================
+
 export const fetchInvoicesThunk = createAsyncThunk(
   "invoice/fetchAll",
   async ({ page = 1, limit = 10 } = {}, { rejectWithValue }) => {
@@ -26,9 +24,7 @@ export const fetchInvoicesThunk = createAsyncThunk(
   }
 );
 
-// =======================
-// Generate Invoice
-// =======================
+
 export const generateInvoiceThunk = createAsyncThunk(
   "invoice/generate",
   async (billId, { rejectWithValue }) => {
@@ -42,9 +38,7 @@ export const generateInvoiceThunk = createAsyncThunk(
   }
 );
 
-// =======================
-// Get Invoice Details
-// =======================
+
 export const fetchInvoiceByIdThunk = createAsyncThunk(
   "invoice/getById",
   async (invoiceId, { rejectWithValue }) => {
@@ -58,9 +52,7 @@ export const fetchInvoiceByIdThunk = createAsyncThunk(
   }
 );
 
-// =======================
-// Download PDF
-// =======================
+
 export const downloadInvoicePdfThunk = createAsyncThunk(
   "invoice/downloadPdf",
   async (invoiceId, { rejectWithValue }) => {
@@ -74,9 +66,7 @@ export const downloadInvoicePdfThunk = createAsyncThunk(
   }
 );
 
-// =======================
-// Cancel Invoice
-// =======================
+
 export const cancelInvoiceThunk = createAsyncThunk(
   "invoice/cancel",
   async ({ invoiceId, reason }, { rejectWithValue }) => {
@@ -120,9 +110,6 @@ const invoiceSlice = createSlice({
   extraReducers: (builder) => {
     builder
 
-      // ===================
-      // Fetch All
-      // ===================
       .addCase(fetchInvoicesThunk.pending, (state) => {
         state.status = "loading";
       })
@@ -137,9 +124,6 @@ const invoiceSlice = createSlice({
         state.error = action.payload;
       })
 
-      // ===================
-      // Generate
-      // ===================
       .addCase(generateInvoiceThunk.pending, (state) => {
         state.status = "loading";
       })
@@ -154,9 +138,7 @@ const invoiceSlice = createSlice({
         state.error = action.payload;
       })
 
-      // ===================
-      // Details
-      // ===================
+     
       .addCase(fetchInvoiceByIdThunk.pending, (state) => {
         state.status = "loading";
       })
@@ -171,16 +153,12 @@ const invoiceSlice = createSlice({
         state.error = action.payload;
       })
 
-      // ===================
-      // Download PDF
-      // ===================
+  
       .addCase(downloadInvoicePdfThunk.fulfilled, (state, action) => {
         state.pdfBlob = action.payload.data;
       })
 
-      // ===================
-      // Cancel
-      // ===================
+     
       .addCase(cancelInvoiceThunk.pending, (state) => {
         state.status = "loading";
       })
